@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from math import pi
+
+from three_line_explorer.config import (
+    DT,
+    LANE_COUNT,
+    LANE_HALF_LIFE,
+    LANE_SNAP_EPSILON,
+    LANE_Z,
+    PLAYER_ACCELERATION,
+    PLAYER_DECELERATION,
+    PLAYER_MAX_SPEED,
+    PLAYER_SIZE_X,
+    PLAYER_START_FACING,
+    PLAYER_START_LANE,
+    PLAYER_START_X,
+    STAGE_MAX_X,
+    STAGE_MIN_X,
+    TURN_HALF_LIFE,
+)
+from three_line_explorer.math3d import clamp, clamp_int, half_life_alpha, lerp_angle, move_toward
+
+
+@dataclass(slots=True)
+class PlayerState:
+    x: float
+    z: float
+    velocity_x: float
+    target_lane_index: int
+    facing: int
+    render_yaw: float
+
+
+def player_min_x() -> float:
+    return STAGE_MIN_X + PLAYER_SIZE_X * 0.5
+
+
+def player_max_x() -> float:
+    return STAGE_MAX_X - PLAYER_SIZE_X * 0.5
+
+
+def create_player() -> PlayerState:
+    return PlayerState(
+        x=PLAYER_START_X,
+        z=LANE_Z[int(PLAYER_START_LANE)],
+        velocity_x=0.0,
+        target_lane_index=int(PLAYER_START_LANE),
+        facing=PLAYER_START_FACING,
+        render_yaw=0.0 if PLAYER_START_FACING > 0 else pi,
+    )
+
+
+def reset_player(player: PlayerState) -> None:
+    fresh = create_player()
+    player.x = fresh.x
+    player.z = fresh.z
+    player.velocity_x = fresh.velocity_x
+    player.target_lane_index = fresh.target_lane_index
+    player.facing = fresh.facing
+    player.render_yaw = fresh.render_yaw
+
+
+def change_lane_by_world_step(player: PlayerState, world_lane_step: int) -> None:
+    player.target_lane_index = clamp_int(
+        player.target_lane_index + world_lane_step,
+        0,
+        LANE_COUNT - 1,
+    )
+
+
+def set_lane(player: PlayerState, lane_index: int) -> None:
+    player.target_lane_index = clamp_int(lane_index, 0, LANE_COUNT - 1)
+
+
+def warp_player_near_left(player: PlayerState) -> None:
+    player.x = player_min_x() + 2.0
+    player.velocity_x = 0.0
+
+
+def warp_player_near_right(player: PlayerState) -> None:
+    player.x = player_max_x() - 2.0
+    player.velocity_x = 0.0
+
+
+def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> None:
+    move_axis = clamp(move_axis, -1.0, 1.0)
+    target_velocity_x = move_axis * PLAYER_MAX_SPEED
+    if move_axis != 0.0:
+        player.velocity_x = move_toward(
+            player.velocity_x,
+            target_velocity_x,
+            PLAYER_ACCELERATION * dt,
+        )
+        player.facing = 1 if move_axis > 0.0 else -1
+    else:
+        player.velocity_x = move_toward(player.velocity_x, 0.0, PLAYER_DECELERATION * dt)
+
+    player.x = clamp(player.x + player.velocity_x * dt, player_min_x(), player_max_x())
+
+    target_z = LANE_Z[player.target_lane_index]
+    lane_alpha = half_life_alpha(dt, LANE_HALF_LIFE)
+    player.z += (target_z - player.z) * lane_alpha
+    if abs(player.z - target_z) < LANE_SNAP_EPSILON:
+        player.z = target_z
+
+    target_yaw = 0.0 if player.facing > 0 else pi
+    turn_alpha = half_life_alpha(dt, TURN_HALF_LIFE)
+    player.render_yaw = lerp_angle(player.render_yaw, target_yaw, turn_alpha)
