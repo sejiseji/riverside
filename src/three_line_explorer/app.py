@@ -7,9 +7,11 @@ from three_line_explorer.camera import (
     CameraRig,
     CameraSnapshot,
     compute_lane_screen_x,
+    compute_move_screen_y_delta,
     compute_screen_input_axes,
     make_camera_snapshot,
     update_stable_lane_orientation,
+    update_stable_move_orientation,
 )
 from three_line_explorer.camera_director import CameraDirector
 from three_line_explorer.config import DT, FPS, SCREEN_H, SCREEN_W
@@ -75,8 +77,10 @@ class App:
             shot_id=self.camera.current_shot_id,
         )
         lane_x = compute_lane_screen_x(snapshot, self.player.x)
-        stable = update_stable_lane_orientation(1, lane_x)
-        return snapshot.with_lane_mapping(lane_x, stable)
+        stable_lane = update_stable_lane_orientation(1, lane_x)
+        move_y_delta = compute_move_screen_y_delta(snapshot, self.player.x, self.player.z)
+        stable_move = update_stable_move_orientation(1, move_y_delta)
+        return snapshot.with_input_mapping(lane_x, stable_lane, stable_move)
 
     def _stick_basis_from_last_render(self) -> StickBasis:
         move_axis, lane_axis = compute_screen_input_axes(
@@ -163,6 +167,7 @@ class App:
             self.player.z,
             lane_screen_x=self.last_rendered_camera_snapshot.lane_screen_x,
             stable_lane_orientation=self.last_rendered_camera_snapshot.stable_lane_orientation,
+            stable_move_orientation=self.last_rendered_camera_snapshot.stable_move_orientation,
             shot_id=self.camera.current_shot_id,
         )
 
@@ -181,7 +186,16 @@ class App:
             self.last_rendered_camera_snapshot.stable_lane_orientation,
             lane_x,
         )
-        self.last_rendered_camera_snapshot = snapshot.with_lane_mapping(lane_x, stable)
+        move_y_delta = compute_move_screen_y_delta(snapshot, self.player.x, self.player.z)
+        stable_move = update_stable_move_orientation(
+            self.last_rendered_camera_snapshot.stable_move_orientation,
+            move_y_delta,
+        )
+        self.last_rendered_camera_snapshot = snapshot.with_input_mapping(
+            lane_x,
+            stable,
+            stable_move,
+        )
 
         draw_ui(
             pyxel,

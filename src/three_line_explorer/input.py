@@ -218,11 +218,12 @@ class InputAdapter:
         if pointer_intent.lane_screen_step != 0:
             lane_screen_step = pointer_intent.lane_screen_step
 
-        keyboard_axis = 0.0
+        keyboard_screen_axis = 0.0
         if _btn(pyxel, "KEY_UP") or _btn(pyxel, "KEY_W"):
-            keyboard_axis += 1.0
+            keyboard_screen_axis += 1.0
         if _btn(pyxel, "KEY_DOWN") or _btn(pyxel, "KEY_S"):
-            keyboard_axis -= 1.0
+            keyboard_screen_axis -= 1.0
+        keyboard_axis = _keyboard_move_axis(keyboard_screen_axis, stick_basis)
 
         move_axis = keyboard_axis if keyboard_axis != 0.0 else pointer_intent.move_axis
 
@@ -249,6 +250,13 @@ def _stick_move_axis(move_component: float) -> float:
     if abs(move_component) < STICK_DEAD_ZONE_PX:
         return 0.0
     return 1.0 if move_component > 0.0 else -1.0
+
+
+def _keyboard_move_axis(screen_axis: float, stick_basis: StickBasis) -> float:
+    if screen_axis == 0.0:
+        return 0.0
+    up_move_component, _ = stick_basis.components(0.0, -STICK_DEAD_ZONE_PX)
+    return screen_axis if up_move_component >= 0.0 else -screen_axis
 
 
 def _camera_button_at(x: float, y: float) -> CameraShotId | None:

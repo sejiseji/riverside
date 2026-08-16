@@ -11,6 +11,7 @@ from three_line_explorer.config import (
     INITIAL_CAMERA,
     LANE_MAPPING_SWITCH_THRESHOLD_PX,
     LANE_Z,
+    MOVE_MAPPING_SWITCH_THRESHOLD_PX,
     SCREEN_W,
     VIEWPORT_H,
     VIEWPORT_W,
@@ -60,8 +61,22 @@ class CameraSnapshot:
     screen_center_y: float
     lane_screen_x: tuple[float, float, float]
     stable_lane_orientation: int
+    stable_move_orientation: int
     shot_id: CameraShotId
     params: CameraParameters
+
+    def with_input_mapping(
+        self,
+        lane_screen_x: tuple[float, float, float],
+        stable_lane_orientation: int,
+        stable_move_orientation: int,
+    ) -> CameraSnapshot:
+        return replace(
+            self,
+            lane_screen_x=lane_screen_x,
+            stable_lane_orientation=stable_lane_orientation,
+            stable_move_orientation=stable_move_orientation,
+        )
 
     def with_lane_mapping(
         self,
@@ -154,6 +169,7 @@ def make_camera_snapshot(
     *,
     lane_screen_x: tuple[float, float, float] = (0.0, 0.0, 0.0),
     stable_lane_orientation: int = 1,
+    stable_move_orientation: int = 1,
     shot_id: CameraShotId = INITIAL_CAMERA,
 ) -> CameraSnapshot:
     pivot = Vec3(player_x, params.target_y, player_z)
@@ -182,6 +198,7 @@ def make_camera_snapshot(
         screen_center_y=VIEWPORT_Y + VIEWPORT_H * 0.5,
         lane_screen_x=lane_screen_x,
         stable_lane_orientation=stable_lane_orientation,
+        stable_move_orientation=stable_move_orientation,
         shot_id=shot_id,
         params=params,
     )
@@ -200,39 +217,26 @@ def compute_screen_input_axes(
     player_x: float,
     player_z: float,
 ) -> tuple[Vec2, Vec2]:
-    origin = Vec3(player_x, 0.25, player_z)
-    move_axis = _projected_world_axis(
-        snapshot,
-        origin,
-        Vec3(SCREEN_INPUT_AXIS_SAMPLE_DISTANCE, 0.0, 0.0),
-        Vec2(0.0, -1.0),
-    )
-    positive_z_axis = _projected_world_axis(
-        snapshot,
-        origin,
-        Vec3(0.0, 0.0, SCREEN_INPUT_AXIS_SAMPLE_DISTANCE),
-        Vec2(1.0, 0.0),
-    )
-    lane_axis = (positive_z_axis * float(snapshot.stable_lane_orientation)).normalized()
-    if lane_axis.length_squared() == 0.0:
-        lane_axis = Vec2(1.0, 0.0)
+    del player_x, player_z
+    move_axis = Vec2(0.0, -float(snapshot.stable_move_orientation))
+    lane_axis = Vec2(1.0, 0.0)
     return move_axis, lane_axis
 
 
-def _projected_world_axis(
+def compute_move_screen_y_delta(
     snapshot: CameraSnapshot,
-    origin: Vec3,
-    delta: Vec3,
-    fallback: Vec2,
-) -> Vec2:
+    player_x: float,
+    player_z: float,
+) -> float:
+    origin = Vec3(player_x, 0.25, player_z)
     start = project_world_point(snapshot, origin)
-    end = project_world_point(snapshot, origin + delta)
+    end = project_world_point(
+        snapshot,
+        origin + Vec3(SCREEN_INPUT_AXIS_SAMPLE_DISTANCE, 0.0, 0.0),
+    )
     if start is None or end is None:
-        return fallback
-    axis = Vec2(end.x - start.x, end.y - start.y).normalized()
-    if axis.length_squared() == 0.0:
-        return fallback
-    return axis
+        return float("nan")
+    return end.y - start.y
 
 
 def update_stable_lane_orientation(
@@ -250,6 +254,20 @@ def update_stable_lane_orientation(
             return -1
         return 1
     if measure >= LANE_MAPPING_SWITCH_THRESHOLD_PX:
+        return 1
+    return -1
+
+
+def update_stable_move_orientation(previous_orientation: int, screen_y_delta: float) -> int:
+    previous = 1 if previous_orientation >= 0 else -1
+    if not isfinite(screen_y_delta):
+        return previous
+
+    if previous >= 0:
+        if screen_y_delta >= MOVE_MAPPING_SWITCH_THRESHOLD_PX:
+            return -1
+        return 1
+    if screen_y_delta <= -MOVE_MAPPING_SWITCH_THRESHOLD_PX:
         return 1
     return -1
 

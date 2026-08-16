@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from math import sqrt
 from unittest import TestCase
 
 from three_line_explorer.config import (
@@ -104,41 +103,50 @@ class InputAdapterTests(TestCase):
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
         self.assertEqual(intent.lane_screen_step, 1)
 
-    def test_drag_uses_camera_aligned_stick_basis(self) -> None:
+    def test_drag_uses_screen_cardinal_stick_basis(self) -> None:
         adapter = InputAdapter()
         pyxel = FakePyxel()
-        inv_sqrt2 = 1.0 / sqrt(2.0)
         basis = StickBasis(
-            move_forward_x=inv_sqrt2,
-            move_forward_y=-inv_sqrt2,
-            lane_screen_x=inv_sqrt2,
-            lane_screen_y=inv_sqrt2,
+            move_forward_x=0.0,
+            move_forward_y=1.0,
+            lane_screen_x=1.0,
+            lane_screen_y=0.0,
         )
 
         pyxel.pointer_press(196, 700)
         adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
 
-        pyxel.pointer_hold(196 + 40, 700 - 40)
+        pyxel.pointer_hold(196, 700 - 40)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
-        self.assertEqual(intent.move_axis, 1.0)
+        self.assertEqual(intent.move_axis, -1.0)
         self.assertEqual(intent.lane_screen_step, 0)
 
-        lane_drag = (STICK_LANE_STEP_PX + 2.0) * inv_sqrt2
-        pyxel.pointer_hold(round(196 + lane_drag), round(700 + lane_drag))
+        pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX + 2.0), 700)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
         self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, 1)
+
+    def test_keyboard_vertical_keys_follow_screen_move_orientation(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+
+        pyxel.down = {pyxel.KEY_UP}
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, StickBasis())
+        self.assertEqual(intent.move_axis, 1.0)
+
+        inverted_basis = StickBasis(move_forward_y=1.0)
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, inverted_basis)
+        self.assertEqual(intent.move_axis, -1.0)
+
+        pyxel.down = {pyxel.KEY_DOWN}
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, inverted_basis)
+        self.assertEqual(intent.move_axis, 1.0)
 
     def test_active_drag_is_rebased_when_stick_basis_changes(self) -> None:
         adapter = InputAdapter()
         pyxel = FakePyxel()
         initial_basis = StickBasis()
-        rotated_basis = StickBasis(
-            move_forward_x=1.0,
-            move_forward_y=0.0,
-            lane_screen_x=0.0,
-            lane_screen_y=1.0,
-        )
+        inverted_basis = StickBasis(move_forward_y=1.0)
 
         pyxel.pointer_press(196, 700)
         adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, initial_basis)
@@ -148,14 +156,14 @@ class InputAdapterTests(TestCase):
         self.assertEqual(intent.move_axis, 1.0)
         self.assertEqual(intent.lane_screen_step, 0)
 
-        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, rotated_basis)
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, inverted_basis)
         self.assertEqual(intent.move_axis, 1.0)
         self.assertEqual(intent.lane_screen_step, 0)
-        self.assertAlmostEqual(adapter.pointer.drag_x, 40.0)
-        self.assertAlmostEqual(adapter.pointer.drag_y, 0.0)
+        self.assertAlmostEqual(adapter.pointer.drag_x, 0.0)
+        self.assertAlmostEqual(adapter.pointer.drag_y, 40.0)
 
         pyxel.pointer_hold(220, 660)
-        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, rotated_basis)
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, inverted_basis)
         self.assertEqual(intent.move_axis, 1.0)
 
     def test_horizontal_drag_waits_before_repeating_lane_step(self) -> None:

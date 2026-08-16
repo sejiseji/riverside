@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from three_line_explorer.camera import CAMERA_SHOTS, compute_lane_screen_x, make_camera_snapshot
+from three_line_explorer.camera import (
+    CAMERA_SHOTS,
+    compute_lane_screen_x,
+    make_camera_snapshot,
+    update_stable_move_orientation,
+)
 from three_line_explorer.camera_director import CameraDirector
 from three_line_explorer.config import CameraShotId
 from three_line_explorer.player import create_player
@@ -24,6 +29,15 @@ class LineMappingTests(TestCase):
         self.assertGreater(a_lane_x[2] - a_lane_x[0], 0.0)
         self.assertLess(b_lane_x[2] - b_lane_x[0], 0.0)
         self.assertGreater(c_lane_x[2] - c_lane_x[0], 0.0)
+
+    def test_vertical_move_mapping_uses_hysteresis(self) -> None:
+        self.assertEqual(update_stable_move_orientation(1, -20.0), 1)
+        self.assertEqual(update_stable_move_orientation(1, 0.0), 1)
+        self.assertEqual(update_stable_move_orientation(1, 20.0), -1)
+
+        self.assertEqual(update_stable_move_orientation(-1, 20.0), -1)
+        self.assertEqual(update_stable_move_orientation(-1, 0.0), -1)
+        self.assertEqual(update_stable_move_orientation(-1, -20.0), 1)
 
 
 class CameraDirectorTests(TestCase):

@@ -148,7 +148,7 @@ def draw_debug_hud(
         f"AZ/EL {degrees(snapshot.params.azimuth):6.1f} {degrees(snapshot.params.elevation):5.1f}",
         f"DIST {snapshot.params.distance:6.1f} TRANS {transition_progress * 100:5.1f}%",
         f"LANE X {snapshot.lane_screen_x[0]:6.1f} {snapshot.lane_screen_x[1]:6.1f} {snapshot.lane_screen_x[2]:6.1f}",
-        f"ORIENT {snapshot.stable_lane_orientation:+d}",
+        f"ORIENT L/M {snapshot.stable_lane_orientation:+d} {snapshot.stable_move_orientation:+d}",
         f"VOL X {visible_volume.center_x:7.2f}",
         f"VOL MIN/MAX {visible_volume.bounds.minimum.x:7.2f} {visible_volume.bounds.maximum.x:7.2f}",
         f"CLAMP L/R {int(visible_volume.clamped_left)} {int(visible_volume.clamped_right)}",
