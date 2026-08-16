@@ -3,8 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBLISH_DIR="$(mktemp -d /tmp/riverside-pages.XXXXXX)"
-PUBLISH_ID="${1:-$(git -C "$ROOT_DIR" rev-parse --short HEAD)}"
-BUILD_DIR="$PUBLISH_DIR/builds/$PUBLISH_ID"
+CACHE_BUST_ID="${1:-$(git -C "$ROOT_DIR" rev-parse --short HEAD)}"
 
 cleanup() {
   rm -rf "$PUBLISH_DIR"
@@ -20,7 +19,6 @@ copy_site() {
 }
 
 copy_site "$PUBLISH_DIR"
-copy_site "$BUILD_DIR"
 touch "$PUBLISH_DIR/.nojekyll"
 
 git -C "$PUBLISH_DIR" init
@@ -31,4 +29,4 @@ git -C "$PUBLISH_DIR" add .
 git -C "$PUBLISH_DIR" commit -m "Publish Pyxel web page"
 git -C "$PUBLISH_DIR" push --force-with-lease origin gh-pages
 
-echo "Published: https://sejiseji.github.io/riverside/builds/$PUBLISH_ID/"
+echo "Published: https://sejiseji.github.io/riverside/?v=$CACHE_BUST_ID"
