@@ -15,6 +15,7 @@ from three_line_explorer.config import (
     PLAYER_ACCELERATION,
     PLAYER_DECELERATION,
     PLAYER_MAX_SPEED,
+    PLAYER_MOVE_READY_RADIANS,
     PLAYER_SIZE_X,
     PLAYER_SIZE_Y,
     PLAYER_SIZE_Z,
@@ -33,6 +34,7 @@ from three_line_explorer.math3d import (
     half_life_alpha,
     lerp_angle,
     move_toward,
+    shortest_angle_delta,
 )
 
 
@@ -169,14 +171,29 @@ def update_player(
     collision_provider: CollisionProvider | None = None,
 ) -> None:
     move_axis = clamp(move_axis, -1.0, 1.0)
-    target_velocity_x = move_axis * PLAYER_MAX_SPEED
-    if move_axis != 0.0:
+    move_direction = _move_direction(move_axis)
+    target_z = LANE_Z[player.target_lane_index]
+    lane_motion_active = (
+        player.pending_lane_step != 0
+        or abs(target_z - player.z) >= LANE_SNAP_EPSILON
+    )
+
+    if move_direction != 0 and not lane_motion_active:
+        player.target_yaw = _move_yaw(move_direction)
+
+    x_move_ready = (
+        move_direction != 0
+        and not lane_motion_active
+        and _is_yaw_ready_for_move(player.render_yaw, _move_yaw(move_direction))
+    )
+    target_velocity_x = move_axis * PLAYER_MAX_SPEED if x_move_ready else 0.0
+    if move_direction != 0:
         player.velocity_x = move_toward(
             player.velocity_x,
             target_velocity_x,
-            PLAYER_ACCELERATION * dt,
+            (PLAYER_ACCELERATION if x_move_ready else PLAYER_DECELERATION) * dt,
         )
-        player.facing = 1 if move_axis > 0.0 else -1
+        player.facing = move_direction
     else:
         player.velocity_x = move_toward(player.velocity_x, 0.0, PLAYER_DECELERATION * dt)
 
@@ -204,8 +221,8 @@ def update_player(
         player.target_yaw = _lane_step_yaw(player.pending_lane_step)
     elif abs(target_z - player.z) >= LANE_SNAP_EPSILON:
         player.target_yaw = _lane_step_yaw(1 if target_z > player.z else -1)
-    elif move_axis != 0.0:
-        player.target_yaw = 0.0 if move_axis > 0.0 else pi
+    elif move_direction != 0:
+        player.target_yaw = _move_yaw(move_direction)
 
     lane_alpha = half_life_alpha(dt, LANE_HALF_LIFE)
     desired_z = player.z + (target_z - player.z) * lane_alpha
@@ -224,6 +241,22 @@ def update_player(
 
 def _lane_step_yaw(world_lane_step: int) -> float:
     return -pi * 0.5 if world_lane_step > 0 else pi * 0.5
+
+
+def _move_direction(move_axis: float) -> int:
+    if move_axis > 0.0:
+        return 1
+    if move_axis < 0.0:
+        return -1
+    return 0
+
+
+def _move_yaw(move_direction: int) -> float:
+    return 0.0 if move_direction > 0 else pi
+
+
+def _is_yaw_ready_for_move(render_yaw: float, target_yaw: float) -> bool:
+    return abs(shortest_angle_delta(render_yaw, target_yaw)) <= PLAYER_MOVE_READY_RADIANS
 
 
 def _resolve_x_movement(

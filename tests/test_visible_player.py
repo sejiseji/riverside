@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import pi
 from unittest import TestCase
 
 from three_line_explorer.config import (
@@ -69,6 +70,23 @@ class PlayerTests(TestCase):
         update_player(player, -1.0, dt=DT)
         self.assertEqual(player.x, player_min_x())
 
+    def test_opposite_direction_input_turns_before_moving(self) -> None:
+        player = create_player()
+        start_x = player.x
+
+        update_player(player, -1.0, dt=DT)
+
+        self.assertEqual(player.x, start_x)
+        self.assertEqual(player.velocity_x, 0.0)
+        self.assertEqual(player.facing, -1)
+        self.assertEqual(player.target_yaw, pi)
+        self.assertGreater(player.render_yaw, 0.0)
+
+        for _ in range(20):
+            update_player(player, -1.0, dt=DT)
+
+        self.assertLess(player.x, start_x)
+
     def test_line_target_clamps_and_z_moves_continuously(self) -> None:
         player = create_player()
         change_lane_by_world_step(player, 10)
@@ -114,6 +132,9 @@ class PlayerTests(TestCase):
 
     def test_backward_collision_stops_at_blocking_solid(self) -> None:
         player = create_player()
+        player.facing = -1
+        player.target_yaw = pi
+        player.render_yaw = pi
         blocker = _test_solid((-40.0, 0.0, -8.0), (-28.0, 30.0, 8.0))
 
         update_player(player, -1.0, dt=1.0, collision_provider=lambda _bounds: (blocker,))
