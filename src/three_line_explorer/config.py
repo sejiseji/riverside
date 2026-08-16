@@ -75,20 +75,20 @@ NEAR_PLANE = 4.0
 CAMERA_SHOT_SPECS = {
     CameraShotId.REAR_RIGHT_HIGH: (
         radians(135.0),
-        radians(20.0),
-        560.0,
+        radians(12.0),
+        640.0,
         CAMERA_TARGET_Y,
     ),
     CameraShotId.FRONT_RIGHT_CLOSE: (
         radians(45.0),
-        radians(22.0),
-        450.0,
+        radians(14.0),
+        520.0,
         CAMERA_TARGET_Y,
     ),
     CameraShotId.REAR_LEFT_SHALLOW: (
         radians(240.0),
-        radians(9.0),
-        620.0,
+        radians(6.0),
+        700.0,
         CAMERA_TARGET_Y,
     ),
 }
