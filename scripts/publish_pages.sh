@@ -15,6 +15,7 @@ copy_site() {
   local target_dir="$1"
   mkdir -p "$target_dir"
   rsync -a "$ROOT_DIR/index.html" "$ROOT_DIR/web_bootstrap.py" "$ROOT_DIR/run.py" "$ROOT_DIR/src" "$target_dir/"
+  rsync -a "$ROOT_DIR/src/three_line_explorer" "$target_dir/"
   touch "$target_dir/.nojekyll"
 }
 

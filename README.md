@@ -43,3 +43,7 @@ https://sejiseji.github.io/riverside/index.html?v=<commit-or-check-id>
 
 The page propagates the build path id, `v`, `id`, or `riverside_bust` to local
 `.py` and `.pyxres` loads so Pyxel Web does not reuse stale app files.
+
+The publish script also places `three_line_explorer/` at the web root because
+Pyxel Web resolves imports more reliably when the package name matches the
+served path directly.
