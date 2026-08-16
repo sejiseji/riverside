@@ -16,6 +16,7 @@ touch "$PUBLISH_DIR/.nojekyll"
 git -C "$PUBLISH_DIR" init
 git -C "$PUBLISH_DIR" branch -M gh-pages
 git -C "$PUBLISH_DIR" remote add origin git@github.com:sejiseji/riverside.git
+git -C "$PUBLISH_DIR" fetch origin gh-pages
 git -C "$PUBLISH_DIR" add .
 git -C "$PUBLISH_DIR" commit -m "Publish Pyxel web page"
 git -C "$PUBLISH_DIR" push --force-with-lease origin gh-pages
