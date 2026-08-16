@@ -129,6 +129,35 @@ class InputAdapterTests(TestCase):
         self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, 1)
 
+    def test_active_drag_is_rebased_when_stick_basis_changes(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        initial_basis = StickBasis()
+        rotated_basis = StickBasis(
+            move_forward_x=1.0,
+            move_forward_y=0.0,
+            lane_screen_x=0.0,
+            lane_screen_y=1.0,
+        )
+
+        pyxel.pointer_press(196, 700)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, initial_basis)
+
+        pyxel.pointer_hold(196, 660)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, initial_basis)
+        self.assertEqual(intent.move_axis, 1.0)
+        self.assertEqual(intent.lane_screen_step, 0)
+
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, rotated_basis)
+        self.assertEqual(intent.move_axis, 1.0)
+        self.assertEqual(intent.lane_screen_step, 0)
+        self.assertAlmostEqual(adapter.pointer.drag_x, 40.0)
+        self.assertAlmostEqual(adapter.pointer.drag_y, 0.0)
+
+        pyxel.pointer_hold(220, 660)
+        intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, rotated_basis)
+        self.assertEqual(intent.move_axis, 1.0)
+
     def test_horizontal_drag_waits_before_repeating_lane_step(self) -> None:
         adapter = InputAdapter()
         pyxel = FakePyxel()

@@ -67,6 +67,24 @@ class StickBasis:
         ) / determinant
         return move_component, lane_component
 
+    def vector_from_components(
+        self,
+        move_component: float,
+        lane_component: float,
+    ) -> tuple[float, float]:
+        return (
+            self.move_forward_x * move_component + self.lane_screen_x * lane_component,
+            self.move_forward_y * move_component + self.lane_screen_y * lane_component,
+        )
+
+    def almost_equals(self, other: StickBasis) -> bool:
+        return (
+            abs(self.move_forward_x - other.move_forward_x) < 1e-5
+            and abs(self.move_forward_y - other.move_forward_y) < 1e-5
+            and abs(self.lane_screen_x - other.lane_screen_x) < 1e-5
+            and abs(self.lane_screen_y - other.lane_screen_y) < 1e-5
+        )
+
 
 @dataclass(slots=True)
 class PointerTracker:
@@ -79,6 +97,7 @@ class PointerTracker:
     drag_x: float = 0.0
     drag_y: float = 0.0
     elapsed: float = 0.0
+    last_stick_basis: StickBasis = field(default_factory=StickBasis)
 
     def update(self, pyxel: Any, dt: float, stick_basis: StickBasis) -> PointerIntent:
         intent = PointerIntent()
@@ -95,6 +114,7 @@ class PointerTracker:
             self.drag_x = 0.0
             self.drag_y = 0.0
             self.elapsed = 0.0
+            self.last_stick_basis = stick_basis
             return intent
 
         if not self.pressed:
@@ -106,6 +126,18 @@ class PointerTracker:
         current_y = float(pyxel.mouse_y)
         self.drag_x = current_x - self.start_x
         self.drag_y = current_y - self.start_y
+        if self.mode == "stick" and not self.last_stick_basis.almost_equals(stick_basis):
+            move_component, lane_component = self.last_stick_basis.components(
+                self.drag_x,
+                self.drag_y,
+            )
+            self.drag_x, self.drag_y = stick_basis.vector_from_components(
+                move_component,
+                lane_component,
+            )
+            self.start_x = current_x - self.drag_x
+            self.start_y = current_y - self.drag_y
+            self.last_stick_basis = stick_basis
         move_component, lane_component = stick_basis.components(self.drag_x, self.drag_y)
 
         if self.mode == "stick" and _btn(pyxel, "MOUSE_BUTTON_LEFT"):
@@ -142,6 +174,7 @@ class PointerTracker:
         self.drag_x = 0.0
         self.drag_y = 0.0
         self.elapsed = 0.0
+        self.last_stick_basis = StickBasis()
 
     @property
     def stick_active(self) -> bool:
