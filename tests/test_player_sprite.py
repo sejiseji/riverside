@@ -15,10 +15,12 @@ from three_line_explorer.player_sprite import (
 )
 from three_line_explorer.player_sprite_data import (
     PLAYER_SPRITE_ANIMATION_FRAMES,
+    PLAYER_SPRITE_COLUMNS,
     PLAYER_SPRITE_FRAME_H,
     PLAYER_SPRITE_FRAME_W,
     PLAYER_SPRITE_FRAMES_PER_BANK,
     PLAYER_SPRITE_IMAGE_BANKS,
+    PLAYER_SPRITE_ROWS,
     PLAYER_SPRITE_SHEETS,
     PLAYER_SPRITE_TRANSPARENT_COLOR,
 )
@@ -27,6 +29,9 @@ from three_line_explorer.player_sprite_data import (
 class PlayerSpriteTests(TestCase):
     def test_sprite_sheet_dimensions_match_pyxel_bank_layout(self) -> None:
         self.assertEqual(len(PLAYER_SPRITE_SHEETS), len(PLAYER_SPRITE_IMAGE_BANKS))
+        self.assertEqual(PLAYER_SPRITE_COLUMNS * PLAYER_SPRITE_ROWS, 16)
+        self.assertEqual(PLAYER_SPRITE_ANIMATION_FRAMES, 4)
+        self.assertEqual(PLAYER_SPRITE_IMAGE_BANKS, (0,))
         for sheet in PLAYER_SPRITE_SHEETS:
             self.assertEqual(len(sheet), PLAYER_SPRITE_FRAME_H * 4)
             self.assertTrue(
@@ -56,6 +61,10 @@ class PlayerSpriteTests(TestCase):
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, PLAYER_SPRITE_FRAME_W)
 
+        image_bank, u, *_ = player_sprite_source(player, 15)
+        self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
+        self.assertEqual(u, PLAYER_SPRITE_FRAME_W * 3)
+
         image_bank, u, *_ = player_sprite_source(player, 20)
-        self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[1])
+        self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, 0)
