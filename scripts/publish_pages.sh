@@ -14,7 +14,11 @@ copy_site() {
   local target_dir="$1"
   mkdir -p "$target_dir"
   rsync -a "$ROOT_DIR/index.html" "$ROOT_DIR/web_bootstrap.py" "$target_dir/"
-  rsync -a "$ROOT_DIR/src/three_line_explorer" "$target_dir/"
+  rsync -a \
+    --exclude "__pycache__/" \
+    --exclude "*.pyc" \
+    "$ROOT_DIR/src/three_line_explorer" \
+    "$target_dir/"
   touch "$target_dir/.nojekyll"
 }
 
