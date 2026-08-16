@@ -51,6 +51,66 @@
         }
       }
     </style>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        const token =
+          params.get("v") || params.get("id") || params.get("riverside_bust") || Date.now().toString(36);
+        const shouldBust = (url) =>
+          url.origin === window.location.origin && /\.(py|pyxres)$/i.test(url.pathname);
+        const bustUrl = (value) => {
+          try {
+            const url = new URL(value, window.location.href);
+            if (shouldBust(url)) {
+              url.searchParams.set("riverside_bust", token);
+              return url.toString();
+            }
+          } catch (_error) {
+            return value;
+          }
+          return value;
+        };
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, init = {}) => {
+          if (input instanceof Request) {
+            const busted = bustUrl(input.url);
+            if (busted !== input.url) {
+              const requestInit = {
+                method: input.method,
+                headers: input.headers,
+                mode: input.mode,
+                credentials: input.credentials,
+                cache: "reload",
+                redirect: input.redirect,
+                referrer: input.referrer,
+                integrity: input.integrity,
+              };
+              return originalFetch(new Request(busted, requestInit), init);
+            }
+          }
+          return originalFetch(bustUrl(input), { cache: "reload", ...init });
+        };
+
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+          return originalOpen.call(this, method, bustUrl(url), ...rest);
+        };
+
+        if (window.caches) {
+          window.caches
+            .keys()
+            .then((keys) =>
+              Promise.all(
+                keys
+                  .filter((key) => /pyxel|riverside/i.test(key))
+                  .map((key) => window.caches.delete(key)),
+              ),
+            )
+            .catch(() => {});
+        }
+      })();
+    </script>
     <script src="https://cdn.jsdelivr.net/gh/kitao/pyxel@v2.9.9/wasm/pyxel.js"></script>
   </head>
   <body>

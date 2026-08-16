@@ -28,3 +28,12 @@ scripts/publish_pages.sh
 Published page:
 
 https://sejiseji.github.io/riverside/
+
+For cache-explicit checks, use a versioned URL:
+
+```text
+https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
+```
+
+The page propagates `v`, `id`, or `riverside_bust` to local `.py` and `.pyxres`
+loads so Pyxel Web does not reuse stale app files.

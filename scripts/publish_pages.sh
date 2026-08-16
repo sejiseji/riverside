@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBLISH_DIR="$(mktemp -d /tmp/riverside-pages.XXXXXX)"
+PUBLISH_ID="${1:-$(git -C "$ROOT_DIR" rev-parse --short HEAD)}"
 
 cleanup() {
   rm -rf "$PUBLISH_DIR"
@@ -18,3 +19,5 @@ git -C "$PUBLISH_DIR" remote add origin git@github.com:sejiseji/riverside.git
 git -C "$PUBLISH_DIR" add .
 git -C "$PUBLISH_DIR" commit -m "Publish Pyxel web page"
 git -C "$PUBLISH_DIR" push --force-with-lease origin gh-pages
+
+echo "Published: https://sejiseji.github.io/riverside/?v=$PUBLISH_ID"
