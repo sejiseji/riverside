@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from math import pi
+from typing import Protocol
 
 from three_line_explorer.config import (
     DT,
@@ -14,6 +16,8 @@ from three_line_explorer.config import (
     PLAYER_DECELERATION,
     PLAYER_MAX_SPEED,
     PLAYER_SIZE_X,
+    PLAYER_SIZE_Y,
+    PLAYER_SIZE_Z,
     PLAYER_START_FACING,
     PLAYER_START_LANE,
     PLAYER_START_X,
@@ -21,7 +25,22 @@ from three_line_explorer.config import (
     STAGE_MIN_X,
     TURN_HALF_LIFE,
 )
-from three_line_explorer.math3d import clamp, clamp_int, half_life_alpha, lerp_angle, move_toward
+from three_line_explorer.math3d import (
+    AABB,
+    Vec3,
+    clamp,
+    clamp_int,
+    half_life_alpha,
+    lerp_angle,
+    move_toward,
+)
+
+
+class CollisionSolid(Protocol):
+    bounds: AABB
+
+
+CollisionProvider = Callable[[AABB], Iterable[CollisionSolid]]
 
 
 @dataclass(slots=True)
@@ -43,6 +62,35 @@ def player_min_x() -> float:
 
 def player_max_x() -> float:
     return STAGE_MAX_X - PLAYER_SIZE_X * 0.5
+
+
+def player_bounds_at(x: float, z: float) -> AABB:
+    return AABB(
+        Vec3(x - PLAYER_SIZE_X * 0.5, 0.0, z - PLAYER_SIZE_Z * 0.5),
+        Vec3(x + PLAYER_SIZE_X * 0.5, PLAYER_SIZE_Y, z + PLAYER_SIZE_Z * 0.5),
+    )
+
+
+def player_swept_bounds(
+    start_x: float,
+    start_z: float,
+    end_x: float,
+    end_z: float,
+) -> AABB:
+    start = player_bounds_at(start_x, start_z)
+    end = player_bounds_at(end_x, end_z)
+    return AABB(
+        Vec3(
+            min(start.minimum.x, end.minimum.x),
+            min(start.minimum.y, end.minimum.y),
+            min(start.minimum.z, end.minimum.z),
+        ),
+        Vec3(
+            max(start.maximum.x, end.maximum.x),
+            max(start.maximum.y, end.maximum.y),
+            max(start.maximum.z, end.maximum.z),
+        ),
+    )
 
 
 def create_player() -> PlayerState:
@@ -113,7 +161,13 @@ def warp_player_near_right(player: PlayerState) -> None:
     player.velocity_x = 0.0
 
 
-def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> None:
+def update_player(
+    player: PlayerState,
+    move_axis: float,
+    *,
+    dt: float = DT,
+    collision_provider: CollisionProvider | None = None,
+) -> None:
     move_axis = clamp(move_axis, -1.0, 1.0)
     target_velocity_x = move_axis * PLAYER_MAX_SPEED
     if move_axis != 0.0:
@@ -126,7 +180,14 @@ def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> N
     else:
         player.velocity_x = move_toward(player.velocity_x, 0.0, PLAYER_DECELERATION * dt)
 
-    player.x = clamp(player.x + player.velocity_x * dt, player_min_x(), player_max_x())
+    desired_x = clamp(player.x + player.velocity_x * dt, player_min_x(), player_max_x())
+    if collision_provider is None:
+        player.x = desired_x
+    else:
+        candidates = collision_provider(player_swept_bounds(player.x, player.z, desired_x, player.z))
+        player.x, blocked_x = _resolve_x_movement(player.x, desired_x, player.z, candidates)
+        if blocked_x:
+            player.velocity_x = 0.0
 
     if player.pending_lane_step != 0:
         player.lane_turn_delay_remaining = move_toward(
@@ -147,8 +208,14 @@ def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> N
         player.target_yaw = 0.0 if move_axis > 0.0 else pi
 
     lane_alpha = half_life_alpha(dt, LANE_HALF_LIFE)
-    player.z += (target_z - player.z) * lane_alpha
-    if abs(player.z - target_z) < LANE_SNAP_EPSILON:
+    desired_z = player.z + (target_z - player.z) * lane_alpha
+    blocked_z = False
+    if collision_provider is None:
+        player.z = desired_z
+    else:
+        candidates = collision_provider(player_swept_bounds(player.x, player.z, player.x, desired_z))
+        player.z, blocked_z = _resolve_z_movement(player.z, desired_z, player.x, candidates)
+    if not blocked_z and abs(player.z - target_z) < LANE_SNAP_EPSILON:
         player.z = target_z
 
     turn_alpha = half_life_alpha(dt, TURN_HALF_LIFE)
@@ -157,3 +224,101 @@ def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> N
 
 def _lane_step_yaw(world_lane_step: int) -> float:
     return -pi * 0.5 if world_lane_step > 0 else pi * 0.5
+
+
+def _resolve_x_movement(
+    start_x: float,
+    desired_x: float,
+    z: float,
+    solids: Iterable[CollisionSolid],
+) -> tuple[float, bool]:
+    if desired_x == start_x:
+        return desired_x, False
+
+    start_bounds = player_bounds_at(start_x, z)
+    resolved_x = desired_x
+    blocked = False
+    if desired_x > start_x:
+        start_max_x = start_bounds.maximum.x
+        desired_max_x = desired_x + PLAYER_SIZE_X * 0.5
+        for solid in solids:
+            bounds = solid.bounds
+            if not _overlaps_yz(start_bounds, bounds):
+                continue
+            if start_max_x <= bounds.minimum.x < desired_max_x:
+                resolved_x = min(resolved_x, bounds.minimum.x - PLAYER_SIZE_X * 0.5)
+                blocked = True
+    else:
+        start_min_x = start_bounds.minimum.x
+        desired_min_x = desired_x - PLAYER_SIZE_X * 0.5
+        for solid in solids:
+            bounds = solid.bounds
+            if not _overlaps_yz(start_bounds, bounds):
+                continue
+            if desired_min_x < bounds.maximum.x <= start_min_x:
+                resolved_x = max(resolved_x, bounds.maximum.x + PLAYER_SIZE_X * 0.5)
+                blocked = True
+    return resolved_x, blocked
+
+
+def _resolve_z_movement(
+    start_z: float,
+    desired_z: float,
+    x: float,
+    solids: Iterable[CollisionSolid],
+) -> tuple[float, bool]:
+    if desired_z == start_z:
+        return desired_z, False
+
+    start_bounds = player_bounds_at(x, start_z)
+    resolved_z = desired_z
+    blocked = False
+    if desired_z > start_z:
+        start_max_z = start_bounds.maximum.z
+        desired_max_z = desired_z + PLAYER_SIZE_Z * 0.5
+        for solid in solids:
+            bounds = solid.bounds
+            if not _overlaps_xy(start_bounds, bounds):
+                continue
+            if start_max_z <= bounds.minimum.z < desired_max_z:
+                resolved_z = min(resolved_z, bounds.minimum.z - PLAYER_SIZE_Z * 0.5)
+                blocked = True
+    else:
+        start_min_z = start_bounds.minimum.z
+        desired_min_z = desired_z - PLAYER_SIZE_Z * 0.5
+        for solid in solids:
+            bounds = solid.bounds
+            if not _overlaps_xy(start_bounds, bounds):
+                continue
+            if desired_min_z < bounds.maximum.z <= start_min_z:
+                resolved_z = max(resolved_z, bounds.maximum.z + PLAYER_SIZE_Z * 0.5)
+                blocked = True
+    return resolved_z, blocked
+
+
+def _overlaps_yz(a: AABB, b: AABB) -> bool:
+    return (
+        _intervals_overlap(a.minimum.y, a.maximum.y, b.minimum.y, b.maximum.y)
+        and _intervals_overlap(
+            a.minimum.z,
+            a.maximum.z,
+            b.minimum.z,
+            b.maximum.z,
+        )
+    )
+
+
+def _overlaps_xy(a: AABB, b: AABB) -> bool:
+    return (
+        _intervals_overlap(a.minimum.x, a.maximum.x, b.minimum.x, b.maximum.x)
+        and _intervals_overlap(
+            a.minimum.y,
+            a.maximum.y,
+            b.minimum.y,
+            b.maximum.y,
+        )
+    )
+
+
+def _intervals_overlap(a_min: float, a_max: float, b_min: float, b_max: float) -> bool:
+    return a_min < b_max and b_min < a_max

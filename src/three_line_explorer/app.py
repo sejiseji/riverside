@@ -133,7 +133,12 @@ class App:
             )
             request_lane_change_by_world_step(self.player, world_step)
 
-        update_player(self.player, intent.move_axis, dt=DT)
+        update_player(
+            self.player,
+            intent.move_axis,
+            dt=DT,
+            collision_provider=self.stage.candidate_solids,
+        )
         self.visible_volume = update_visible_volume(self.player.x)
 
         self.active_rule, self.active_rule_label = self.stage.active_camera_rule(
