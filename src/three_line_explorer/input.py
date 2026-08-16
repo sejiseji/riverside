@@ -7,6 +7,7 @@ from typing import Any
 from three_line_explorer.config import (
     CameraShotId,
     STICK_DEAD_ZONE_PX,
+    STICK_LANE_REPEAT_DELAY_SECONDS,
     STICK_LANE_STEP_PX,
     TAP_MAX_DISTANCE,
     TAP_MAX_SECONDS,
@@ -48,6 +49,7 @@ class PointerTracker:
     start_x: float = 0.0
     start_y: float = 0.0
     lane_anchor_x: float = 0.0
+    lane_cooldown_remaining: float = 0.0
     drag_x: float = 0.0
     drag_y: float = 0.0
     elapsed: float = 0.0
@@ -63,6 +65,7 @@ class PointerTracker:
             self.start_x = float(pyxel.mouse_x)
             self.start_y = float(pyxel.mouse_y)
             self.lane_anchor_x = self.start_x
+            self.lane_cooldown_remaining = 0.0
             self.drag_x = 0.0
             self.drag_y = 0.0
             self.elapsed = 0.0
@@ -72,6 +75,7 @@ class PointerTracker:
             return intent
 
         self.elapsed += dt
+        self.lane_cooldown_remaining = max(0.0, self.lane_cooldown_remaining - dt)
         current_x = float(pyxel.mouse_x)
         current_y = float(pyxel.mouse_y)
         self.drag_x = current_x - self.start_x
@@ -80,9 +84,14 @@ class PointerTracker:
         if self.mode == "stick" and _btn(pyxel, "MOUSE_BUTTON_LEFT"):
             intent.move_axis = _stick_move_axis(self.drag_x, self.drag_y)
             lane_delta = current_x - self.lane_anchor_x
-            if abs(lane_delta) >= STICK_LANE_STEP_PX and abs(self.drag_x) >= STICK_DEAD_ZONE_PX:
+            if (
+                self.lane_cooldown_remaining <= 0.0
+                and abs(lane_delta) >= STICK_LANE_STEP_PX
+                and abs(self.drag_x) >= STICK_DEAD_ZONE_PX
+            ):
                 intent.lane_screen_step = 1 if lane_delta > 0.0 else -1
                 self.lane_anchor_x += intent.lane_screen_step * STICK_LANE_STEP_PX
+                self.lane_cooldown_remaining = STICK_LANE_REPEAT_DELAY_SECONDS
 
         if _btnr(pyxel, "MOUSE_BUTTON_LEFT"):
             was_tap = (
@@ -102,6 +111,7 @@ class PointerTracker:
         self.start_x = 0.0
         self.start_y = 0.0
         self.lane_anchor_x = 0.0
+        self.lane_cooldown_remaining = 0.0
         self.drag_x = 0.0
         self.drag_y = 0.0
         self.elapsed = 0.0

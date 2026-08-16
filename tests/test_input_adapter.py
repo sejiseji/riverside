@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from unittest import TestCase
 
-from three_line_explorer.config import CameraShotId, DT
+from three_line_explorer.config import (
+    CameraShotId,
+    DT,
+    STICK_LANE_REPEAT_DELAY_SECONDS,
+    STICK_LANE_STEP_PX,
+)
 from three_line_explorer.input import InputAdapter
 
 
@@ -90,17 +95,38 @@ class InputAdapterTests(TestCase):
         pyxel.pointer_press(196, 700)
         adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
 
-        pyxel.pointer_hold(238, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
-        self.assertEqual(intent.lane_screen_step, 1)
-
-        pyxel.pointer_hold(238, 700)
+        pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX - 1), 700)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
         self.assertEqual(intent.lane_screen_step, 0)
 
-        pyxel.pointer_hold(280, 700)
+        pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX), 700)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
         self.assertEqual(intent.lane_screen_step, 1)
+
+    def test_horizontal_drag_waits_before_repeating_lane_step(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+
+        pyxel.pointer_press(196, 700)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+
+        pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX), 700)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        self.assertEqual(intent.lane_screen_step, 1)
+
+        pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX * 2), 700)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        self.assertEqual(intent.lane_screen_step, 0)
+
+        repeated = 0
+        frames = int(STICK_LANE_REPEAT_DELAY_SECONDS / DT) + 2
+        for _ in range(frames):
+            intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+            repeated = intent.lane_screen_step
+            if repeated != 0:
+                break
+
+        self.assertEqual(repeated, 1)
 
     def test_camera_button_tap_still_requests_camera(self) -> None:
         adapter = InputAdapter()
