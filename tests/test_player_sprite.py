@@ -40,8 +40,8 @@ class PlayerSpriteTests(TestCase):
     def test_render_yaw_selects_cardinal_sprite_rows(self) -> None:
         self.assertEqual(player_sprite_row(0.0), SPRITE_ROW_RIGHT)
         self.assertEqual(player_sprite_row(pi), SPRITE_ROW_LEFT)
-        self.assertEqual(player_sprite_row(-pi * 0.5), SPRITE_ROW_BACK)
-        self.assertEqual(player_sprite_row(pi * 0.5), SPRITE_ROW_FRONT)
+        self.assertEqual(player_sprite_row(-pi * 0.5), SPRITE_ROW_FRONT)
+        self.assertEqual(player_sprite_row(pi * 0.5), SPRITE_ROW_BACK)
 
     def test_idle_and_moving_source_frames(self) -> None:
         player = create_player()

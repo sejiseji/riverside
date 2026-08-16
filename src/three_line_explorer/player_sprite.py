@@ -57,8 +57,8 @@ def player_sprite_row(render_yaw: float) -> int:
     candidates = (
         (0.0, SPRITE_ROW_RIGHT),
         (pi, SPRITE_ROW_LEFT),
-        (-pi * 0.5, SPRITE_ROW_BACK),
-        (pi * 0.5, SPRITE_ROW_FRONT),
+        (-pi * 0.5, SPRITE_ROW_FRONT),
+        (pi * 0.5, SPRITE_ROW_BACK),
     )
     return min(
         candidates,
