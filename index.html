@@ -54,8 +54,13 @@
     <script>
       (() => {
         const params = new URLSearchParams(window.location.search);
+        const pathBuildMatch = window.location.pathname.match(/\/builds\/([^/]+)\//);
         const token =
-          params.get("v") || params.get("id") || params.get("riverside_bust") || Date.now().toString(36);
+          params.get("v") ||
+          params.get("id") ||
+          params.get("riverside_bust") ||
+          (pathBuildMatch && pathBuildMatch[1]) ||
+          Date.now().toString(36);
         const shouldBust = (url) =>
           url.origin === window.location.origin && /\.(py|pyxres)$/i.test(url.pathname);
         const bustUrl = (value) => {

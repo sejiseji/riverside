@@ -29,11 +29,17 @@ Published page:
 
 https://sejiseji.github.io/riverside/
 
-For cache-explicit checks, use a versioned URL:
+For cache-explicit checks, prefer the per-publish path printed by the publish script:
 
 ```text
-https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
+https://sejiseji.github.io/riverside/builds/<commit-or-check-id>/
 ```
 
-The page propagates `v`, `id`, or `riverside_bust` to local `.py` and `.pyxres`
-loads so Pyxel Web does not reuse stale app files.
+If you need to use the root page directly, use `index.html` with a version query:
+
+```text
+https://sejiseji.github.io/riverside/index.html?v=<commit-or-check-id>
+```
+
+The page propagates the build path id, `v`, `id`, or `riverside_bust` to local
+`.py` and `.pyxres` loads so Pyxel Web does not reuse stale app files.
