@@ -17,10 +17,13 @@ python3 -m unittest discover -s tests -t .
 
 This first prototype intentionally uses only Pyxel primitives. No `.pyxres` asset file is created yet.
 
-GitHub Pages build:
+GitHub Pages publishing:
 
-The repository publishes `index.html`, `web_bootstrap.py`, `run.py`, and `src/` through
-`.github/workflows/pages.yml`.
+The published site is served from the `gh-pages` branch. To refresh it after changing the app:
+
+```bash
+scripts/publish_pages.sh
+```
 
 Published page:
 
