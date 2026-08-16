@@ -38,10 +38,10 @@ class PlayerSpriteTests(TestCase):
         self.assertIn(format(PLAYER_SPRITE_TRANSPARENT_COLOR, "x"), PLAYER_SPRITE_SHEETS[0][0])
 
     def test_render_yaw_selects_cardinal_sprite_rows(self) -> None:
-        self.assertEqual(player_sprite_row(0.0), SPRITE_ROW_BACK)
-        self.assertEqual(player_sprite_row(pi), SPRITE_ROW_FRONT)
-        self.assertEqual(player_sprite_row(-pi * 0.5), SPRITE_ROW_RIGHT)
-        self.assertEqual(player_sprite_row(pi * 0.5), SPRITE_ROW_LEFT)
+        self.assertEqual(player_sprite_row(0.0), SPRITE_ROW_RIGHT)
+        self.assertEqual(player_sprite_row(pi), SPRITE_ROW_LEFT)
+        self.assertEqual(player_sprite_row(-pi * 0.5), SPRITE_ROW_BACK)
+        self.assertEqual(player_sprite_row(pi * 0.5), SPRITE_ROW_FRONT)
 
     def test_idle_and_moving_source_frames(self) -> None:
         player = create_player()

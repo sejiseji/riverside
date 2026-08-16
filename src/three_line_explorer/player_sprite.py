@@ -55,10 +55,10 @@ def player_sprite_source(player: PlayerState, frame_count: int) -> tuple[int, in
 
 def player_sprite_row(render_yaw: float) -> int:
     candidates = (
-        (0.0, SPRITE_ROW_BACK),
-        (pi, SPRITE_ROW_FRONT),
-        (-pi * 0.5, SPRITE_ROW_RIGHT),
-        (pi * 0.5, SPRITE_ROW_LEFT),
+        (0.0, SPRITE_ROW_RIGHT),
+        (pi, SPRITE_ROW_LEFT),
+        (-pi * 0.5, SPRITE_ROW_BACK),
+        (pi * 0.5, SPRITE_ROW_FRONT),
     )
     return min(
         candidates,
