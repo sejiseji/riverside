@@ -188,7 +188,7 @@ class Renderer:
                 return
             projected_points.append(projected)
 
-        depth = sum(point.z for point in clipped_points) / len(clipped_points)
+        depth = _face_sort_depth(clipped_points)
         self.render_faces.append(
             RenderFace(
                 layer=layer,
@@ -346,6 +346,10 @@ def _draw_face(pyxel: Any, face: RenderFace) -> None:
     for index, start in enumerate(points):
         end = points[(index + 1) % len(points)]
         pyxel.line(round(start.x), round(start.y), round(end.x), round(end.y), face.outline_color)
+
+
+def _face_sort_depth(camera_points: tuple[Vec3, ...]) -> float:
+    return min(point.z for point in camera_points)
 
 
 def _draw_line(pyxel: Any, line: RenderLine) -> None:
