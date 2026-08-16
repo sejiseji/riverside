@@ -37,6 +37,8 @@ from three_line_explorer.visible_volume import VisibleVolumeState
 @dataclass(slots=True)
 class RenderFace:
     layer: RenderLayer
+    lane_depth: float
+    route_depth: float
     depth: float
     object_id: int
     face_index: int
@@ -95,7 +97,7 @@ class Renderer:
         )
 
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
-        for face in sorted(self.render_faces, key=lambda item: (item.layer, -item.depth, item.object_id, item.face_index)):
+        for face in sorted(self.render_faces, key=_render_face_sort_key):
             _draw_face(pyxel, face)
         for line in sorted(self.render_lines, key=lambda item: (item.layer, -item.depth, item.object_id, item.line_index)):
             _draw_line(pyxel, line)
@@ -126,7 +128,13 @@ class Renderer:
             palette.FLOOR_FILL,
             palette.FLOOR_OUTLINE,
         )
-        self._enqueue_face(floor_face, RenderLayer.FLOOR, snapshot, stats)
+        self._enqueue_face(
+            floor_face,
+            RenderLayer.FLOOR,
+            snapshot,
+            stats,
+            object_sort_center=floor_bounds.center,
+        )
 
         candidates = stage.candidate_solids(visible_volume.bounds)
         stats.candidate_objects = len(candidates)
@@ -136,6 +144,7 @@ class Renderer:
                 continue
             if visible_volume.bounds.contains_aabb(solid.bounds):
                 faces = solid.faces
+                object_sort_center = solid.bounds.center
             else:
                 stats.clipped_boxes += 1
                 faces = make_aabb_faces(
@@ -145,9 +154,17 @@ class Renderer:
                     solid.top_color,
                     solid.outline_color,
                 )
+                object_sort_center = clipped_bounds.center
             for face in faces:
-                self._enqueue_face(face, RenderLayer.SOLID, snapshot, stats)
+                self._enqueue_face(
+                    face,
+                    RenderLayer.SOLID,
+                    snapshot,
+                    stats,
+                    object_sort_center=object_sort_center,
+                )
 
+        player_sort_center = Vec3(player.x, 0.0, player.z)
         for face in make_player_faces(
             PLAYER_OBJECT_ID,
             player.x,
@@ -155,7 +172,13 @@ class Renderer:
             player.render_yaw,
             outline_color=palette.PLAYER_OUTLINE,
         ):
-            self._enqueue_face(face, RenderLayer.SOLID, snapshot, stats)
+            self._enqueue_face(
+                face,
+                RenderLayer.SOLID,
+                snapshot,
+                stats,
+                object_sort_center=player_sort_center,
+            )
 
         if show_lanes:
             self._enqueue_lane_lines(visible_volume.bounds, snapshot, stats)
@@ -171,6 +194,8 @@ class Renderer:
         layer: RenderLayer,
         snapshot: CameraSnapshot,
         stats: RenderStats,
+        *,
+        object_sort_center: Vec3,
     ) -> None:
         to_camera = snapshot.position - face.center
         if face.normal.dot(to_camera) <= CULL_EPSILON:
@@ -189,9 +214,12 @@ class Renderer:
             projected_points.append(projected)
 
         depth = _face_sort_depth(clipped_points)
+        lane_depth, route_depth = _object_sort_depths(object_sort_center, snapshot)
         self.render_faces.append(
             RenderFace(
                 layer=layer,
+                lane_depth=lane_depth,
+                route_depth=route_depth,
                 depth=depth,
                 object_id=face.object_id,
                 face_index=face.face_index,
@@ -346,6 +374,21 @@ def _draw_face(pyxel: Any, face: RenderFace) -> None:
     for index, start in enumerate(points):
         end = points[(index + 1) % len(points)]
         pyxel.line(round(start.x), round(start.y), round(end.x), round(end.y), face.outline_color)
+
+
+def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, int, float, int]:
+    return (
+        face.layer,
+        -face.lane_depth,
+        -face.route_depth,
+        face.object_id,
+        -face.depth,
+        face.face_index,
+    )
+
+
+def _object_sort_depths(center: Vec3, snapshot: CameraSnapshot) -> tuple[float, float]:
+    return center.z * snapshot.forward.z, center.x * snapshot.forward.x
 
 
 def _face_sort_depth(camera_points: tuple[Vec3, ...]) -> float:
