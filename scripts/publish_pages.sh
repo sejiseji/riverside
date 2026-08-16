@@ -19,6 +19,9 @@ copy_site() {
     --exclude "*.pyc" \
     "$ROOT_DIR/src/three_line_explorer" \
     "$target_dir/"
+  if [ -d "$ROOT_DIR/assets" ]; then
+    rsync -a "$ROOT_DIR/assets" "$target_dir/"
+  fi
   touch "$target_dir/.nojekyll"
 }
 

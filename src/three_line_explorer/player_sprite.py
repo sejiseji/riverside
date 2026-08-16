@@ -22,6 +22,7 @@ SPRITE_ROW_FRONT = 0
 SPRITE_ROW_RIGHT = 1
 SPRITE_ROW_LEFT = 2
 SPRITE_ROW_BACK = 3
+PLAYER_SPRITE_RESOURCE_PATH = "assets/player_sprites.pyxres"
 
 _loaded = False
 
@@ -29,6 +30,10 @@ _loaded = False
 def load_player_sprite_sheet(pyxel: Any) -> None:
     global _loaded
     if _loaded:
+        return
+
+    if _try_load_player_sprite_resource(pyxel):
+        _loaded = True
         return
 
     for bank, sheet in zip(PLAYER_SPRITE_IMAGE_BANKS, PLAYER_SPRITE_SHEETS, strict=True):
@@ -81,11 +86,28 @@ def _image_bank(pyxel: Any, bank: int) -> Any:
     return pyxel.images[bank]
 
 
+def _try_load_player_sprite_resource(pyxel: Any) -> bool:
+    loader = getattr(pyxel, "load", None)
+    if not callable(loader):
+        return False
+    try:
+        loader(
+            PLAYER_SPRITE_RESOURCE_PATH,
+            exclude_tilemaps=True,
+            exclude_sounds=True,
+            exclude_musics=True,
+        )
+    except Exception:
+        return False
+    return True
+
+
 __all__ = [
     "PLAYER_SPRITE_COLUMNS",
     "PLAYER_SPRITE_FRAME_H",
     "PLAYER_SPRITE_FRAME_W",
     "PLAYER_SPRITE_IMAGE_BANKS",
+    "PLAYER_SPRITE_RESOURCE_PATH",
     "PLAYER_SPRITE_TRANSPARENT_COLOR",
     "load_player_sprite_sheet",
     "player_sprite_is_moving",

@@ -17,10 +17,22 @@ python3 -m unittest discover -s tests -t .
 
 Prototype controls:
 
-- Keyboard: `W` / `Up` moves +X, `S` / `Down` moves -X, `Left` / `Right` changes the target lane in screen space.
-- Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick. The stick axes follow the rendered camera angle, so dragging along the visible route moves along X. A longer perpendicular drag turns the player toward that lane direction first, then changes lanes, with a short pause before repeat input.
+- Keyboard: `Left` / `A` and `Right` / `D` move along the route in screen space.
+  `Up` / `W` and `Down` / `S` change the target lane in screen space.
+- Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick.
+  Horizontal drag moves along the route, and vertical drag changes lanes. Camera changes update
+  the screen-space mapping from the last rendered camera state.
 
-This first prototype intentionally uses only Pyxel primitives. No `.pyxres` asset file is created yet.
+Player sprites:
+
+The editable player sprite sheet lives in:
+
+```text
+assets/player_sprites.pyxres
+```
+
+The game loads this `.pyxres` first. If it is missing, it falls back to the
+embedded sprite data in `src/three_line_explorer/player_sprite_data.py`.
 
 GitHub Pages publishing:
 
@@ -44,5 +56,5 @@ The page propagates `v` to local `.py` and `.pyxres` loads so Pyxel Web does
 not reuse stale app files.
 
 The publish script places only the Pyxel Web entry files at the Pages root:
-`index.html`, `web_bootstrap.py`, and `three_line_explorer/`. `run.py` and
-`src/` are local development files and are not published.
+`index.html`, `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
+`run.py` and `src/` are local development files and are not published.
