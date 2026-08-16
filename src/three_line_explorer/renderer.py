@@ -26,9 +26,16 @@ from three_line_explorer.config import (
     VIEWPORT_X,
     VIEWPORT_Y,
 )
-from three_line_explorer.geometry import Face, make_aabb_faces, make_floor_face, make_player_faces
+from three_line_explorer.geometry import Face, make_aabb_faces, make_floor_face
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import PlayerState
+from three_line_explorer.player_sprite import (
+    PLAYER_SPRITE_FRAME_H,
+    PLAYER_SPRITE_FRAME_W,
+    PLAYER_SPRITE_TRANSPARENT_COLOR,
+    load_player_sprite_sheet,
+    player_sprite_source,
+)
 from three_line_explorer.projection import ProjectedPoint, project_camera_point, world_to_camera
 from three_line_explorer.stage import Stage
 from three_line_explorer.visible_volume import VisibleVolumeState
@@ -59,6 +66,21 @@ class RenderLine:
 
 
 @dataclass(slots=True)
+class RenderSprite:
+    layer: RenderLayer
+    lane_depth: float
+    route_depth: float
+    depth: float
+    object_id: int
+    anchor: ProjectedPoint
+    image_bank: int
+    u: int
+    v: int
+    w: int
+    h: int
+
+
+@dataclass(slots=True)
 class RenderStats:
     candidate_objects: int = 0
     visible_faces: int = 0
@@ -71,10 +93,11 @@ class RenderStats:
 class Renderer:
     render_faces: list[RenderFace]
     render_lines: list[RenderLine]
+    render_sprites: list[RenderSprite]
 
     @classmethod
     def create(cls) -> Renderer:
-        return cls(render_faces=[], render_lines=[])
+        return cls(render_faces=[], render_lines=[], render_sprites=[])
 
     def render(
         self,
@@ -87,19 +110,37 @@ class Renderer:
         show_volume: bool,
         show_lanes: bool,
     ) -> RenderStats:
+        load_player_sprite_sheet(pyxel)
         stats = self.build_scene(
             stage,
             visible_volume,
             player,
             snapshot,
+            frame_count=getattr(pyxel, "frame_count", 0),
             show_volume=show_volume,
             show_lanes=show_lanes,
         )
 
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
-        for face in sorted(self.render_faces, key=_render_face_sort_key):
-            _draw_face(pyxel, face)
-        for line in sorted(self.render_lines, key=lambda item: (item.layer, -item.depth, item.object_id, item.line_index)):
+        render_items = [
+            (_render_face_sort_key(face), 0, face)
+            for face in self.render_faces
+        ] + [
+            (_render_sprite_sort_key(sprite), 1, sprite)
+            for sprite in self.render_sprites
+        ]
+        for _sort_key, item_type, item in sorted(
+            render_items,
+            key=lambda value: (value[0], value[1]),
+        ):
+            if item_type == 0:
+                _draw_face(pyxel, item)
+            else:
+                _draw_sprite(pyxel, item)
+        for line in sorted(
+            self.render_lines,
+            key=lambda item: (item.layer, -item.depth, item.object_id, item.line_index),
+        ):
             _draw_line(pyxel, line)
         pyxel.clip()
         return stats
@@ -111,11 +152,13 @@ class Renderer:
         player: PlayerState,
         snapshot: CameraSnapshot,
         *,
+        frame_count: int = 0,
         show_volume: bool,
         show_lanes: bool,
     ) -> RenderStats:
         self.render_faces.clear()
         self.render_lines.clear()
+        self.render_sprites.clear()
         stats = RenderStats()
 
         floor_bounds = AABB(
@@ -164,21 +207,7 @@ class Renderer:
                     object_sort_center=object_sort_center,
                 )
 
-        player_sort_center = Vec3(player.x, 0.0, player.z)
-        for face in make_player_faces(
-            PLAYER_OBJECT_ID,
-            player.x,
-            player.z,
-            player.render_yaw,
-            outline_color=palette.PLAYER_OUTLINE,
-        ):
-            self._enqueue_face(
-                face,
-                RenderLayer.SOLID,
-                snapshot,
-                stats,
-                object_sort_center=player_sort_center,
-            )
+        self._enqueue_player_sprite(player, snapshot, frame_count)
 
         if show_lanes:
             self._enqueue_lane_lines(visible_volume.bounds, snapshot, stats)
@@ -187,6 +216,36 @@ class Renderer:
 
         stats.visible_faces = len(self.render_faces)
         return stats
+
+    def _enqueue_player_sprite(
+        self,
+        player: PlayerState,
+        snapshot: CameraSnapshot,
+        frame_count: int,
+    ) -> None:
+        anchor_world = Vec3(player.x, GROUND_Y, player.z)
+        camera_point = world_to_camera(snapshot, anchor_world)
+        projected = project_camera_point(snapshot, camera_point)
+        if projected is None:
+            return
+
+        lane_depth, route_depth = _object_sort_depths(anchor_world, snapshot)
+        image_bank, u, v, w, h = player_sprite_source(player, frame_count)
+        self.render_sprites.append(
+            RenderSprite(
+                layer=RenderLayer.SOLID,
+                lane_depth=lane_depth,
+                route_depth=route_depth,
+                depth=camera_point.z,
+                object_id=PLAYER_OBJECT_ID,
+                anchor=projected,
+                image_bank=image_bank,
+                u=u,
+                v=v,
+                w=w,
+                h=h,
+            )
+        )
 
     def _enqueue_face(
         self,
@@ -387,12 +446,38 @@ def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, 
     )
 
 
+def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, int, float, int]:
+    return (
+        sprite.layer,
+        -sprite.lane_depth,
+        -sprite.route_depth,
+        sprite.object_id,
+        -sprite.depth,
+        0,
+    )
+
+
 def _object_sort_depths(center: Vec3, snapshot: CameraSnapshot) -> tuple[float, float]:
     return center.z * snapshot.forward.z, center.x * snapshot.forward.x
 
 
 def _face_sort_depth(camera_points: tuple[Vec3, ...]) -> float:
     return min(point.z for point in camera_points)
+
+
+def _draw_sprite(pyxel: Any, sprite: RenderSprite) -> None:
+    x = round(sprite.anchor.x - PLAYER_SPRITE_FRAME_W * 0.5)
+    y = round(sprite.anchor.y - PLAYER_SPRITE_FRAME_H)
+    pyxel.blt(
+        x,
+        y,
+        sprite.image_bank,
+        sprite.u,
+        sprite.v,
+        sprite.w,
+        sprite.h,
+        PLAYER_SPRITE_TRANSPARENT_COLOR,
+    )
 
 
 def _draw_line(pyxel: Any, line: RenderLine) -> None:
