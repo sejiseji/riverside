@@ -7,13 +7,7 @@
 
 from __future__ import annotations
 
-import sys
-
-
-if "src" not in sys.path:
-    sys.path.insert(0, "src")
-
-from three_line_explorer.app import main  # noqa: E402
+from three_line_explorer.app import main
 
 
 main()

@@ -43,6 +43,6 @@ https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 The page propagates `v` to local `.py` and `.pyxres` loads so Pyxel Web does
 not reuse stale app files.
 
-The publish script also places `three_line_explorer/` at the web root because
-Pyxel Web resolves imports more reliably when the package name matches the
-served path directly.
+The publish script places only the Pyxel Web entry files at the Pages root:
+`index.html`, `web_bootstrap.py`, and `three_line_explorer/`. `run.py` and
+`src/` are local development files and are not published.
