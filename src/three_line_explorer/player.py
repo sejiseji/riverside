@@ -8,6 +8,7 @@ from three_line_explorer.config import (
     LANE_COUNT,
     LANE_HALF_LIFE,
     LANE_SNAP_EPSILON,
+    LANE_TURN_DELAY_SECONDS,
     LANE_Z,
     PLAYER_ACCELERATION,
     PLAYER_DECELERATION,
@@ -30,6 +31,9 @@ class PlayerState:
     velocity_x: float
     target_lane_index: int
     facing: int
+    target_yaw: float
+    pending_lane_step: int
+    lane_turn_delay_remaining: float
     render_yaw: float
 
 
@@ -48,6 +52,9 @@ def create_player() -> PlayerState:
         velocity_x=0.0,
         target_lane_index=int(PLAYER_START_LANE),
         facing=PLAYER_START_FACING,
+        target_yaw=0.0 if PLAYER_START_FACING > 0 else pi,
+        pending_lane_step=0,
+        lane_turn_delay_remaining=0.0,
         render_yaw=0.0 if PLAYER_START_FACING > 0 else pi,
     )
 
@@ -59,6 +66,9 @@ def reset_player(player: PlayerState) -> None:
     player.velocity_x = fresh.velocity_x
     player.target_lane_index = fresh.target_lane_index
     player.facing = fresh.facing
+    player.target_yaw = fresh.target_yaw
+    player.pending_lane_step = fresh.pending_lane_step
+    player.lane_turn_delay_remaining = fresh.lane_turn_delay_remaining
     player.render_yaw = fresh.render_yaw
 
 
@@ -68,6 +78,25 @@ def change_lane_by_world_step(player: PlayerState, world_lane_step: int) -> None
         0,
         LANE_COUNT - 1,
     )
+
+
+def request_lane_change_by_world_step(player: PlayerState, world_lane_step: int) -> None:
+    if world_lane_step == 0:
+        return
+
+    player.target_yaw = _lane_step_yaw(world_lane_step)
+    target_lane_index = clamp_int(
+        player.target_lane_index + world_lane_step,
+        0,
+        LANE_COUNT - 1,
+    )
+    if target_lane_index == player.target_lane_index:
+        player.pending_lane_step = 0
+        player.lane_turn_delay_remaining = 0.0
+        return
+
+    player.pending_lane_step = 1 if world_lane_step > 0 else -1
+    player.lane_turn_delay_remaining = LANE_TURN_DELAY_SECONDS
 
 
 def set_lane(player: PlayerState, lane_index: int) -> None:
@@ -99,12 +128,32 @@ def update_player(player: PlayerState, move_axis: float, *, dt: float = DT) -> N
 
     player.x = clamp(player.x + player.velocity_x * dt, player_min_x(), player_max_x())
 
+    if player.pending_lane_step != 0:
+        player.lane_turn_delay_remaining = move_toward(
+            player.lane_turn_delay_remaining,
+            0.0,
+            dt,
+        )
+        if player.lane_turn_delay_remaining <= 0.0:
+            change_lane_by_world_step(player, player.pending_lane_step)
+            player.pending_lane_step = 0
+
     target_z = LANE_Z[player.target_lane_index]
+    if player.pending_lane_step != 0:
+        player.target_yaw = _lane_step_yaw(player.pending_lane_step)
+    elif abs(target_z - player.z) >= LANE_SNAP_EPSILON:
+        player.target_yaw = _lane_step_yaw(1 if target_z > player.z else -1)
+    elif move_axis != 0.0:
+        player.target_yaw = 0.0 if move_axis > 0.0 else pi
+
     lane_alpha = half_life_alpha(dt, LANE_HALF_LIFE)
     player.z += (target_z - player.z) * lane_alpha
     if abs(player.z - target_z) < LANE_SNAP_EPSILON:
         player.z = target_z
 
-    target_yaw = 0.0 if player.facing > 0 else pi
     turn_alpha = half_life_alpha(dt, TURN_HALF_LIFE)
-    player.render_yaw = lerp_angle(player.render_yaw, target_yaw, turn_alpha)
+    player.render_yaw = lerp_angle(player.render_yaw, player.target_yaw, turn_alpha)
+
+
+def _lane_step_yaw(world_lane_step: int) -> float:
+    return -pi * 0.5 if world_lane_step > 0 else pi * 0.5

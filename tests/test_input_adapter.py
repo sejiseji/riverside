@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import sqrt
 from unittest import TestCase
 
 from three_line_explorer.config import (
@@ -9,7 +10,7 @@ from three_line_explorer.config import (
     STICK_LANE_REPEAT_DELAY_SECONDS,
     STICK_LANE_STEP_PX,
 )
-from three_line_explorer.input import InputAdapter
+from three_line_explorer.input import InputAdapter, StickBasis
 
 
 @dataclass(slots=True)
@@ -101,6 +102,31 @@ class InputAdapterTests(TestCase):
 
         pyxel.pointer_hold(round(196 + STICK_LANE_STEP_PX), 700)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        self.assertEqual(intent.lane_screen_step, 1)
+
+    def test_drag_uses_camera_aligned_stick_basis(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        inv_sqrt2 = 1.0 / sqrt(2.0)
+        basis = StickBasis(
+            move_forward_x=inv_sqrt2,
+            move_forward_y=-inv_sqrt2,
+            lane_screen_x=inv_sqrt2,
+            lane_screen_y=inv_sqrt2,
+        )
+
+        pyxel.pointer_press(196, 700)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+
+        pyxel.pointer_hold(196 + 40, 700 - 40)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+        self.assertEqual(intent.move_axis, 1.0)
+        self.assertEqual(intent.lane_screen_step, 0)
+
+        lane_drag = (STICK_LANE_STEP_PX + 2.0) * inv_sqrt2
+        pyxel.pointer_hold(round(196 + lane_drag), round(700 + lane_drag))
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+        self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, 1)
 
     def test_horizontal_drag_waits_before_repeating_lane_step(self) -> None:

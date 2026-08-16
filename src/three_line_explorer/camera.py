@@ -17,7 +17,7 @@ from three_line_explorer.config import (
     VIEWPORT_X,
     VIEWPORT_Y,
 )
-from three_line_explorer.math3d import Vec3, WORLD_UP, lerp, lerp_angle, smootherstep
+from three_line_explorer.math3d import Vec2, Vec3, WORLD_UP, lerp, lerp_angle, smootherstep
 from three_line_explorer.projection import project_world_point
 
 
@@ -35,6 +35,8 @@ CameraShot = CameraParameters
 CAMERA_SHOTS: dict[CameraShotId, CameraShot] = {
     shot_id: CameraShot(*values) for shot_id, values in CAMERA_SHOT_SPECS.items()
 }
+
+SCREEN_INPUT_AXIS_SAMPLE_DISTANCE = 32.0
 
 
 @dataclass(slots=True)
@@ -191,6 +193,46 @@ def compute_lane_screen_x(snapshot: CameraSnapshot, player_x: float) -> tuple[fl
         projected = project_world_point(snapshot, Vec3(player_x, 0.25, lane_z))
         values.append(float("nan") if projected is None else projected.x)
     return tuple(values)  # type: ignore[return-value]
+
+
+def compute_screen_input_axes(
+    snapshot: CameraSnapshot,
+    player_x: float,
+    player_z: float,
+) -> tuple[Vec2, Vec2]:
+    origin = Vec3(player_x, 0.25, player_z)
+    move_axis = _projected_world_axis(
+        snapshot,
+        origin,
+        Vec3(SCREEN_INPUT_AXIS_SAMPLE_DISTANCE, 0.0, 0.0),
+        Vec2(0.0, -1.0),
+    )
+    positive_z_axis = _projected_world_axis(
+        snapshot,
+        origin,
+        Vec3(0.0, 0.0, SCREEN_INPUT_AXIS_SAMPLE_DISTANCE),
+        Vec2(1.0, 0.0),
+    )
+    lane_axis = (positive_z_axis * float(snapshot.stable_lane_orientation)).normalized()
+    if lane_axis.length_squared() == 0.0:
+        lane_axis = Vec2(1.0, 0.0)
+    return move_axis, lane_axis
+
+
+def _projected_world_axis(
+    snapshot: CameraSnapshot,
+    origin: Vec3,
+    delta: Vec3,
+    fallback: Vec2,
+) -> Vec2:
+    start = project_world_point(snapshot, origin)
+    end = project_world_point(snapshot, origin + delta)
+    if start is None or end is None:
+        return fallback
+    axis = Vec2(end.x - start.x, end.y - start.y).normalized()
+    if axis.length_squared() == 0.0:
+        return fallback
+    return axis
 
 
 def update_stable_lane_orientation(

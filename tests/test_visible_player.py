@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from three_line_explorer.config import (
     DT,
+    LANE_TURN_DELAY_SECONDS,
     LANE_Z,
     PLAYER_SIZE_X,
     STAGE_MAX_X,
@@ -15,6 +16,7 @@ from three_line_explorer.player import (
     create_player,
     player_max_x,
     player_min_x,
+    request_lane_change_by_world_step,
     update_player,
 )
 from three_line_explorer.visible_volume import update_visible_volume
@@ -70,3 +72,21 @@ class PlayerTests(TestCase):
         before_z = player.z
         update_player(player, 0.0, dt=DT)
         self.assertLess(player.z, before_z)
+
+    def test_requested_line_change_turns_before_lane_target_changes(self) -> None:
+        player = create_player()
+
+        request_lane_change_by_world_step(player, 1)
+        self.assertEqual(player.target_lane_index, 1)
+        self.assertEqual(player.pending_lane_step, 1)
+        self.assertLess(player.target_yaw, 0.0)
+
+        update_player(player, 0.0, dt=DT)
+        self.assertEqual(player.target_lane_index, 1)
+
+        frames = int(LANE_TURN_DELAY_SECONDS / DT) + 2
+        for _ in range(frames):
+            update_player(player, 0.0, dt=DT)
+
+        self.assertEqual(player.target_lane_index, 2)
+        self.assertGreater(player.z, LANE_Z[1])

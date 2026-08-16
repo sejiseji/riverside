@@ -7,18 +7,19 @@ from three_line_explorer.camera import (
     CameraRig,
     CameraSnapshot,
     compute_lane_screen_x,
+    compute_screen_input_axes,
     make_camera_snapshot,
     update_stable_lane_orientation,
 )
 from three_line_explorer.camera_director import CameraDirector
 from three_line_explorer.config import DT, FPS, SCREEN_H, SCREEN_W
 from three_line_explorer.debug_hud import draw_debug_hud, draw_ui
-from three_line_explorer.input import InputAdapter
+from three_line_explorer.input import InputAdapter, StickBasis
 from three_line_explorer.player import (
     PlayerState,
-    change_lane_by_world_step,
     create_player,
     reset_player,
+    request_lane_change_by_world_step,
     update_player,
     warp_player_near_left,
     warp_player_near_right,
@@ -64,6 +65,7 @@ class App:
         self.show_lanes = False
         self.last_stats = RenderStats()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
+        self.last_stick_basis = self._stick_basis_from_last_render()
 
     def _initial_snapshot(self) -> CameraSnapshot:
         snapshot = make_camera_snapshot(
@@ -75,6 +77,19 @@ class App:
         lane_x = compute_lane_screen_x(snapshot, self.player.x)
         stable = update_stable_lane_orientation(1, lane_x)
         return snapshot.with_lane_mapping(lane_x, stable)
+
+    def _stick_basis_from_last_render(self) -> StickBasis:
+        move_axis, lane_axis = compute_screen_input_axes(
+            self.last_rendered_camera_snapshot,
+            self.player.x,
+            self.player.z,
+        )
+        return StickBasis(
+            move_forward_x=move_axis.x,
+            move_forward_y=move_axis.y,
+            lane_screen_x=lane_axis.x,
+            lane_screen_y=lane_axis.y,
+        )
 
     def run(self) -> None:
         self.pyxel.run(self.update, self.draw)
@@ -89,7 +104,8 @@ class App:
 
     def update(self) -> None:
         pyxel = self.pyxel
-        intent = self.input.read(pyxel, self.director.effective_shot, DT)
+        self.last_stick_basis = self._stick_basis_from_last_render()
+        intent = self.input.read(pyxel, self.director.effective_shot, DT, self.last_stick_basis)
 
         if intent.quit_requested:
             pyxel.quit()
@@ -115,7 +131,7 @@ class App:
                 intent.lane_screen_step
                 * self.last_rendered_camera_snapshot.stable_lane_orientation
             )
-            change_lane_by_world_step(self.player, world_step)
+            request_lane_change_by_world_step(self.player, world_step)
 
         update_player(self.player, intent.move_axis, dt=DT)
         self.visible_volume = update_visible_volume(self.player.x)
@@ -167,6 +183,7 @@ class App:
             active_camera=self.director.effective_shot,
             stick_active=self.input.pointer.stick_active,
             stick_offset=(self.input.pointer.drag_x, self.input.pointer.drag_y),
+            stick_basis=self.last_stick_basis,
             active_rule_label=self.active_rule_label,
             debug_visible=self.debug_visible,
             show_volume=self.show_volume,

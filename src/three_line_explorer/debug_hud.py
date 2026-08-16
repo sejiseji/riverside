@@ -14,7 +14,7 @@ from three_line_explorer.config import (
     STICK_UI_RADIUS,
     TOP_UI_HEIGHT,
 )
-from three_line_explorer.input import CAMERA_BUTTON_RECTS
+from three_line_explorer.input import CAMERA_BUTTON_RECTS, StickBasis
 from three_line_explorer.player import PlayerState
 from three_line_explorer.renderer import RenderStats
 from three_line_explorer.visible_volume import VisibleVolumeState
@@ -26,6 +26,7 @@ def draw_ui(
     active_camera: CameraShotId,
     stick_active: bool,
     stick_offset: tuple[float, float],
+    stick_basis: StickBasis,
     active_rule_label: str,
     debug_visible: bool,
     show_volume: bool,
@@ -44,22 +45,29 @@ def draw_ui(
     flags = f"D:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
     pyxel.text(140, 28, flags, palette.UI_MUTED)
 
-    _draw_virtual_stick(pyxel, stick_active=stick_active, stick_offset=stick_offset)
+    _draw_virtual_stick(
+        pyxel,
+        stick_active=stick_active,
+        stick_offset=stick_offset,
+        stick_basis=stick_basis,
+    )
 
 
-def _draw_virtual_stick(pyxel: Any, *, stick_active: bool, stick_offset: tuple[float, float]) -> None:
+def _draw_virtual_stick(
+    pyxel: Any,
+    *,
+    stick_active: bool,
+    stick_offset: tuple[float, float],
+    stick_basis: StickBasis,
+) -> None:
     center_x = SCREEN_W // 2
     center_y = SCREEN_H - BOTTOM_UI_HEIGHT // 2
     fill = palette.UI_ACTIVE if stick_active else palette.UI_PANEL_ALT
 
     pyxel.circ(center_x, center_y, STICK_UI_RADIUS, fill)
     pyxel.circb(center_x, center_y, STICK_UI_RADIUS, palette.UI_TEXT)
-    pyxel.line(center_x - 22, center_y, center_x + 22, center_y, palette.UI_TEXT)
-    pyxel.line(center_x, center_y - 22, center_x, center_y + 22, palette.UI_TEXT)
-    _draw_arrow(pyxel, center_x, center_y - 26, 0, -1)
-    _draw_arrow(pyxel, center_x, center_y + 26, 0, 1)
-    _draw_arrow(pyxel, center_x - 26, center_y, -1, 0)
-    _draw_arrow(pyxel, center_x + 26, center_y, 1, 0)
+    _draw_axis(pyxel, center_x, center_y, stick_basis.move_forward_x, stick_basis.move_forward_y)
+    _draw_axis(pyxel, center_x, center_y, stick_basis.lane_screen_x, stick_basis.lane_screen_y)
 
     knob_x, knob_y = _stick_knob_position(center_x, center_y, stick_offset)
     pyxel.circ(knob_x, knob_y, STICK_UI_KNOB_RADIUS, palette.UI_TEXT)
@@ -76,13 +84,49 @@ def _stick_knob_position(center_x: int, center_y: int, offset: tuple[float, floa
     return round(center_x + dx), round(center_y + dy)
 
 
-def _draw_arrow(pyxel: Any, x: int, y: int, dx: int, dy: int) -> None:
-    if dx != 0:
-        pyxel.line(x, y, x - dx * 5, y - 4, palette.UI_TEXT)
-        pyxel.line(x, y, x - dx * 5, y + 4, palette.UI_TEXT)
-    else:
-        pyxel.line(x, y, x - 4, y - dy * 5, palette.UI_TEXT)
-        pyxel.line(x, y, x + 4, y - dy * 5, palette.UI_TEXT)
+def _draw_axis(pyxel: Any, center_x: int, center_y: int, axis_x: float, axis_y: float) -> None:
+    length = 22
+    end_length = 26
+    pyxel.line(
+        round(center_x - axis_x * length),
+        round(center_y - axis_y * length),
+        round(center_x + axis_x * length),
+        round(center_y + axis_y * length),
+        palette.UI_TEXT,
+    )
+    _draw_arrow(
+        pyxel,
+        center_x + axis_x * end_length,
+        center_y + axis_y * end_length,
+        axis_x,
+        axis_y,
+    )
+    _draw_arrow(
+        pyxel,
+        center_x - axis_x * end_length,
+        center_y - axis_y * end_length,
+        -axis_x,
+        -axis_y,
+    )
+
+
+def _draw_arrow(pyxel: Any, x: float, y: float, dx: float, dy: float) -> None:
+    side_x = -dy
+    side_y = dx
+    pyxel.line(
+        round(x),
+        round(y),
+        round(x - dx * 5 + side_x * 4),
+        round(y - dy * 5 + side_y * 4),
+        palette.UI_TEXT,
+    )
+    pyxel.line(
+        round(x),
+        round(y),
+        round(x - dx * 5 - side_x * 4),
+        round(y - dy * 5 - side_y * 4),
+        palette.UI_TEXT,
+    )
 
 
 def draw_debug_hud(
