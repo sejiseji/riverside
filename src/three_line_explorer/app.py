@@ -84,7 +84,7 @@ class App:
         self.visible_volume = update_visible_volume(self.player.x)
         self.camera = CameraRig.create()
         self.director = CameraDirector()
-        self.input.latched_move_axis = 0.0
+        self.input.pointer.reset()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
 
     def update(self) -> None:
@@ -165,7 +165,8 @@ class App:
         draw_ui(
             pyxel,
             active_camera=self.director.effective_shot,
-            latched_move_axis=self.input.latched_move_axis,
+            stick_active=self.input.pointer.stick_active,
+            stick_offset=(self.input.pointer.drag_x, self.input.pointer.drag_y),
             active_rule_label=self.active_rule_label,
             debug_visible=self.debug_visible,
             show_volume=self.show_volume,

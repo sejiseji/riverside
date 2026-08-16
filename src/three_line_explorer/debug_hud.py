@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import degrees
+from math import degrees, hypot
 from typing import Any
 
 from three_line_explorer import palette
@@ -10,9 +10,11 @@ from three_line_explorer.config import (
     CameraShotId,
     SCREEN_H,
     SCREEN_W,
+    STICK_UI_KNOB_RADIUS,
+    STICK_UI_RADIUS,
     TOP_UI_HEIGHT,
 )
-from three_line_explorer.input import CAMERA_BUTTON_RECTS, MOVE_BUTTON_RECTS
+from three_line_explorer.input import CAMERA_BUTTON_RECTS
 from three_line_explorer.player import PlayerState
 from three_line_explorer.renderer import RenderStats
 from three_line_explorer.visible_volume import VisibleVolumeState
@@ -22,7 +24,8 @@ def draw_ui(
     pyxel: Any,
     *,
     active_camera: CameraShotId,
-    latched_move_axis: float,
+    stick_active: bool,
+    stick_offset: tuple[float, float],
     active_rule_label: str,
     debug_visible: bool,
     show_volume: bool,
@@ -41,12 +44,45 @@ def draw_ui(
     flags = f"D:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
     pyxel.text(140, 28, flags, palette.UI_MUTED)
 
-    for rect_x, rect_y, rect_w, rect_h, move_axis, label in MOVE_BUTTON_RECTS:
-        fill = palette.UI_ACTIVE if move_axis == latched_move_axis else palette.UI_PANEL_ALT
-        pyxel.rect(rect_x, rect_y, rect_w, rect_h, fill)
-        pyxel.rectb(rect_x, rect_y, rect_w, rect_h, palette.UI_TEXT)
-        label_x = rect_x + (rect_w - len(label) * 4) // 2
-        pyxel.text(label_x, rect_y + 14, label, palette.UI_TEXT)
+    _draw_virtual_stick(pyxel, stick_active=stick_active, stick_offset=stick_offset)
+
+
+def _draw_virtual_stick(pyxel: Any, *, stick_active: bool, stick_offset: tuple[float, float]) -> None:
+    center_x = SCREEN_W // 2
+    center_y = SCREEN_H - BOTTOM_UI_HEIGHT // 2
+    fill = palette.UI_ACTIVE if stick_active else palette.UI_PANEL_ALT
+
+    pyxel.circ(center_x, center_y, STICK_UI_RADIUS, fill)
+    pyxel.circb(center_x, center_y, STICK_UI_RADIUS, palette.UI_TEXT)
+    pyxel.line(center_x - 22, center_y, center_x + 22, center_y, palette.UI_TEXT)
+    pyxel.line(center_x, center_y - 22, center_x, center_y + 22, palette.UI_TEXT)
+    _draw_arrow(pyxel, center_x, center_y - 26, 0, -1)
+    _draw_arrow(pyxel, center_x, center_y + 26, 0, 1)
+    _draw_arrow(pyxel, center_x - 26, center_y, -1, 0)
+    _draw_arrow(pyxel, center_x + 26, center_y, 1, 0)
+
+    knob_x, knob_y = _stick_knob_position(center_x, center_y, stick_offset)
+    pyxel.circ(knob_x, knob_y, STICK_UI_KNOB_RADIUS, palette.UI_TEXT)
+
+
+def _stick_knob_position(center_x: int, center_y: int, offset: tuple[float, float]) -> tuple[int, int]:
+    dx, dy = offset
+    length = hypot(dx, dy)
+    max_offset = STICK_UI_RADIUS - STICK_UI_KNOB_RADIUS - 3
+    if length > max_offset and length > 0.0:
+        scale = max_offset / length
+        dx *= scale
+        dy *= scale
+    return round(center_x + dx), round(center_y + dy)
+
+
+def _draw_arrow(pyxel: Any, x: int, y: int, dx: int, dy: int) -> None:
+    if dx != 0:
+        pyxel.line(x, y, x - dx * 5, y - 4, palette.UI_TEXT)
+        pyxel.line(x, y, x - dx * 5, y + 4, palette.UI_TEXT)
+    else:
+        pyxel.line(x, y, x - 4, y - dy * 5, palette.UI_TEXT)
+        pyxel.line(x, y, x + 4, y - dy * 5, palette.UI_TEXT)
 
 
 def draw_debug_hud(

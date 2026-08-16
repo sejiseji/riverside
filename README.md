@@ -15,6 +15,11 @@ Run logic tests:
 python3 -m unittest discover -s tests -t .
 ```
 
+Prototype controls:
+
+- Keyboard: `W` / `Up` moves +X, `S` / `Down` moves -X, `Left` / `Right` changes the target lane in screen space.
+- Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick. Up/down drag moves along X while held; left/right drag changes lanes in screen space.
+
 This first prototype intentionally uses only Pyxel primitives. No `.pyxres` asset file is created yet.
 
 GitHub Pages publishing:
