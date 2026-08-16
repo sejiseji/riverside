@@ -60,6 +60,7 @@ class CameraSnapshot:
     screen_center_x: float
     screen_center_y: float
     lane_screen_x: tuple[float, float, float]
+    lane_screen_y: tuple[float, float, float]
     stable_lane_orientation: int
     stable_move_orientation: int
     shot_id: CameraShotId
@@ -68,12 +69,14 @@ class CameraSnapshot:
     def with_input_mapping(
         self,
         lane_screen_x: tuple[float, float, float],
+        lane_screen_y: tuple[float, float, float],
         stable_lane_orientation: int,
         stable_move_orientation: int,
     ) -> CameraSnapshot:
         return replace(
             self,
             lane_screen_x=lane_screen_x,
+            lane_screen_y=lane_screen_y,
             stable_lane_orientation=stable_lane_orientation,
             stable_move_orientation=stable_move_orientation,
         )
@@ -168,6 +171,7 @@ def make_camera_snapshot(
     player_z: float,
     *,
     lane_screen_x: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    lane_screen_y: tuple[float, float, float] = (0.0, 0.0, 0.0),
     stable_lane_orientation: int = 1,
     stable_move_orientation: int = 1,
     shot_id: CameraShotId = INITIAL_CAMERA,
@@ -197,6 +201,7 @@ def make_camera_snapshot(
         screen_center_x=VIEWPORT_X + VIEWPORT_W * 0.5,
         screen_center_y=VIEWPORT_Y + VIEWPORT_H * 0.5,
         lane_screen_x=lane_screen_x,
+        lane_screen_y=lane_screen_y,
         stable_lane_orientation=stable_lane_orientation,
         stable_move_orientation=stable_move_orientation,
         shot_id=shot_id,
@@ -212,18 +217,26 @@ def compute_lane_screen_x(snapshot: CameraSnapshot, player_x: float) -> tuple[fl
     return tuple(values)  # type: ignore[return-value]
 
 
+def compute_lane_screen_y(snapshot: CameraSnapshot, player_x: float) -> tuple[float, float, float]:
+    values: list[float] = []
+    for lane_z in LANE_Z:
+        projected = project_world_point(snapshot, Vec3(player_x, 0.25, lane_z))
+        values.append(float("nan") if projected is None else projected.y)
+    return tuple(values)  # type: ignore[return-value]
+
+
 def compute_screen_input_axes(
     snapshot: CameraSnapshot,
     player_x: float,
     player_z: float,
 ) -> tuple[Vec2, Vec2]:
     del player_x, player_z
-    move_axis = Vec2(0.0, -float(snapshot.stable_move_orientation))
-    lane_axis = Vec2(1.0, 0.0)
+    move_axis = Vec2(float(snapshot.stable_move_orientation), 0.0)
+    lane_axis = Vec2(0.0, -1.0)
     return move_axis, lane_axis
 
 
-def compute_move_screen_y_delta(
+def compute_move_screen_x_delta(
     snapshot: CameraSnapshot,
     player_x: float,
     player_z: float,
@@ -236,38 +249,38 @@ def compute_move_screen_y_delta(
     )
     if start is None or end is None:
         return float("nan")
-    return end.y - start.y
+    return end.x - start.x
 
 
 def update_stable_lane_orientation(
     previous_orientation: int,
-    lane_screen_x: tuple[float, float, float],
+    lane_screen_y: tuple[float, float, float],
 ) -> int:
-    negative_z_x = lane_screen_x[0]
-    positive_z_x = lane_screen_x[2]
-    if not isfinite(negative_z_x) or not isfinite(positive_z_x):
+    negative_z_y = lane_screen_y[0]
+    positive_z_y = lane_screen_y[2]
+    if not isfinite(negative_z_y) or not isfinite(positive_z_y):
         return 1 if previous_orientation >= 0 else -1
 
-    measure = positive_z_x - negative_z_x
+    measure = positive_z_y - negative_z_y
     if previous_orientation >= 0:
-        if measure <= -LANE_MAPPING_SWITCH_THRESHOLD_PX:
+        if measure >= LANE_MAPPING_SWITCH_THRESHOLD_PX:
             return -1
         return 1
-    if measure >= LANE_MAPPING_SWITCH_THRESHOLD_PX:
+    if measure <= -LANE_MAPPING_SWITCH_THRESHOLD_PX:
         return 1
     return -1
 
 
-def update_stable_move_orientation(previous_orientation: int, screen_y_delta: float) -> int:
+def update_stable_move_orientation(previous_orientation: int, screen_x_delta: float) -> int:
     previous = 1 if previous_orientation >= 0 else -1
-    if not isfinite(screen_y_delta):
+    if not isfinite(screen_x_delta):
         return previous
 
     if previous >= 0:
-        if screen_y_delta >= MOVE_MAPPING_SWITCH_THRESHOLD_PX:
+        if screen_x_delta <= -MOVE_MAPPING_SWITCH_THRESHOLD_PX:
             return -1
         return 1
-    if screen_y_delta <= -MOVE_MAPPING_SWITCH_THRESHOLD_PX:
+    if screen_x_delta >= MOVE_MAPPING_SWITCH_THRESHOLD_PX:
         return 1
     return -1
 

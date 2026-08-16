@@ -7,7 +7,8 @@ from three_line_explorer.camera import (
     CameraRig,
     CameraSnapshot,
     compute_lane_screen_x,
-    compute_move_screen_y_delta,
+    compute_lane_screen_y,
+    compute_move_screen_x_delta,
     compute_screen_input_axes,
     make_camera_snapshot,
     update_stable_lane_orientation,
@@ -77,10 +78,11 @@ class App:
             shot_id=self.camera.current_shot_id,
         )
         lane_x = compute_lane_screen_x(snapshot, self.player.x)
-        stable_lane = update_stable_lane_orientation(1, lane_x)
-        move_y_delta = compute_move_screen_y_delta(snapshot, self.player.x, self.player.z)
-        stable_move = update_stable_move_orientation(1, move_y_delta)
-        return snapshot.with_input_mapping(lane_x, stable_lane, stable_move)
+        lane_y = compute_lane_screen_y(snapshot, self.player.x)
+        stable_lane = update_stable_lane_orientation(1, lane_y)
+        move_x_delta = compute_move_screen_x_delta(snapshot, self.player.x, self.player.z)
+        stable_move = update_stable_move_orientation(1, move_x_delta)
+        return snapshot.with_input_mapping(lane_x, lane_y, stable_lane, stable_move)
 
     def _stick_basis_from_last_render(self) -> StickBasis:
         move_axis, lane_axis = compute_screen_input_axes(
@@ -166,6 +168,7 @@ class App:
             self.player.x,
             self.player.z,
             lane_screen_x=self.last_rendered_camera_snapshot.lane_screen_x,
+            lane_screen_y=self.last_rendered_camera_snapshot.lane_screen_y,
             stable_lane_orientation=self.last_rendered_camera_snapshot.stable_lane_orientation,
             stable_move_orientation=self.last_rendered_camera_snapshot.stable_move_orientation,
             shot_id=self.camera.current_shot_id,
@@ -182,17 +185,19 @@ class App:
         )
 
         lane_x = compute_lane_screen_x(snapshot, self.player.x)
+        lane_y = compute_lane_screen_y(snapshot, self.player.x)
         stable = update_stable_lane_orientation(
             self.last_rendered_camera_snapshot.stable_lane_orientation,
-            lane_x,
+            lane_y,
         )
-        move_y_delta = compute_move_screen_y_delta(snapshot, self.player.x, self.player.z)
+        move_x_delta = compute_move_screen_x_delta(snapshot, self.player.x, self.player.z)
         stable_move = update_stable_move_orientation(
             self.last_rendered_camera_snapshot.stable_move_orientation,
-            move_y_delta,
+            move_x_delta,
         )
         self.last_rendered_camera_snapshot = snapshot.with_input_mapping(
             lane_x,
+            lane_y,
             stable,
             stable_move,
         )

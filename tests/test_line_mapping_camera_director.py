@@ -5,7 +5,10 @@ from unittest import TestCase
 from three_line_explorer.camera import (
     CAMERA_SHOTS,
     compute_lane_screen_x,
+    compute_lane_screen_y,
+    compute_move_screen_x_delta,
     make_camera_snapshot,
+    update_stable_lane_orientation,
     update_stable_move_orientation,
 )
 from three_line_explorer.camera_director import CameraDirector
@@ -15,7 +18,7 @@ from three_line_explorer.stage import Stage
 
 
 class LineMappingTests(TestCase):
-    def test_initial_camera_mapping_matches_spec(self) -> None:
+    def test_initial_camera_projection_matches_screen_axes(self) -> None:
         player = create_player()
 
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_HIGH], player.x, player.z)
@@ -25,19 +28,37 @@ class LineMappingTests(TestCase):
         a_lane_x = compute_lane_screen_x(shot_a, player.x)
         b_lane_x = compute_lane_screen_x(shot_b, player.x)
         c_lane_x = compute_lane_screen_x(shot_c, player.x)
+        a_lane_y = compute_lane_screen_y(shot_a, player.x)
+        b_lane_y = compute_lane_screen_y(shot_b, player.x)
+        c_lane_y = compute_lane_screen_y(shot_c, player.x)
 
         self.assertGreater(a_lane_x[2] - a_lane_x[0], 0.0)
         self.assertLess(b_lane_x[2] - b_lane_x[0], 0.0)
         self.assertGreater(c_lane_x[2] - c_lane_x[0], 0.0)
+        self.assertGreater(a_lane_y[2] - a_lane_y[0], 0.0)
+        self.assertGreater(b_lane_y[2] - b_lane_y[0], 0.0)
+        self.assertLess(c_lane_y[2] - c_lane_y[0], 0.0)
+        self.assertGreater(compute_move_screen_x_delta(shot_a, player.x, player.z), 0.0)
+        self.assertGreater(compute_move_screen_x_delta(shot_b, player.x, player.z), 0.0)
+        self.assertLess(compute_move_screen_x_delta(shot_c, player.x, player.z), 0.0)
 
-    def test_vertical_move_mapping_uses_hysteresis(self) -> None:
-        self.assertEqual(update_stable_move_orientation(1, -20.0), 1)
+    def test_horizontal_move_mapping_uses_hysteresis(self) -> None:
+        self.assertEqual(update_stable_move_orientation(1, 20.0), 1)
         self.assertEqual(update_stable_move_orientation(1, 0.0), 1)
-        self.assertEqual(update_stable_move_orientation(1, 20.0), -1)
+        self.assertEqual(update_stable_move_orientation(1, -20.0), -1)
 
-        self.assertEqual(update_stable_move_orientation(-1, 20.0), -1)
+        self.assertEqual(update_stable_move_orientation(-1, -20.0), -1)
         self.assertEqual(update_stable_move_orientation(-1, 0.0), -1)
-        self.assertEqual(update_stable_move_orientation(-1, -20.0), 1)
+        self.assertEqual(update_stable_move_orientation(-1, 20.0), 1)
+
+    def test_vertical_lane_mapping_uses_hysteresis(self) -> None:
+        self.assertEqual(update_stable_lane_orientation(1, (20.0, 10.0, 0.0)), 1)
+        self.assertEqual(update_stable_lane_orientation(1, (0.0, 0.0, 0.0)), 1)
+        self.assertEqual(update_stable_lane_orientation(1, (0.0, 10.0, 20.0)), -1)
+
+        self.assertEqual(update_stable_lane_orientation(-1, (0.0, 10.0, 20.0)), -1)
+        self.assertEqual(update_stable_lane_orientation(-1, (0.0, 0.0, 0.0)), -1)
+        self.assertEqual(update_stable_lane_orientation(-1, (20.0, 10.0, 0.0)), 1)
 
 
 class CameraDirectorTests(TestCase):

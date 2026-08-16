@@ -44,10 +44,10 @@ class PointerIntent:
 
 @dataclass(frozen=True, slots=True)
 class StickBasis:
-    move_forward_x: float = 0.0
-    move_forward_y: float = -1.0
-    lane_screen_x: float = 1.0
-    lane_screen_y: float = 0.0
+    move_forward_x: float = 1.0
+    move_forward_y: float = 0.0
+    lane_screen_x: float = 0.0
+    lane_screen_y: float = -1.0
 
     def components(self, drag_x: float, drag_y: float) -> tuple[float, float]:
         determinant = (
@@ -207,10 +207,10 @@ class InputAdapter:
         elif _btnp(pyxel, "KEY_C"):
             requested_camera = next_camera_shot(current_camera)
 
-        if _btnp(pyxel, "KEY_LEFT"):
-            lane_screen_step = -1
-        elif _btnp(pyxel, "KEY_RIGHT"):
+        if _btnp(pyxel, "KEY_UP") or _btnp(pyxel, "KEY_W"):
             lane_screen_step = 1
+        elif _btnp(pyxel, "KEY_DOWN") or _btnp(pyxel, "KEY_S"):
+            lane_screen_step = -1
 
         pointer_intent = self.pointer.update(pyxel, dt, stick_basis)
         if pointer_intent.requested_camera is not None:
@@ -219,9 +219,9 @@ class InputAdapter:
             lane_screen_step = pointer_intent.lane_screen_step
 
         keyboard_screen_axis = 0.0
-        if _btn(pyxel, "KEY_UP") or _btn(pyxel, "KEY_W"):
+        if _btn(pyxel, "KEY_RIGHT") or _btn(pyxel, "KEY_D"):
             keyboard_screen_axis += 1.0
-        if _btn(pyxel, "KEY_DOWN") or _btn(pyxel, "KEY_S"):
+        if _btn(pyxel, "KEY_LEFT") or _btn(pyxel, "KEY_A"):
             keyboard_screen_axis -= 1.0
         keyboard_axis = _keyboard_move_axis(keyboard_screen_axis, stick_basis)
 
@@ -255,8 +255,8 @@ def _stick_move_axis(move_component: float) -> float:
 def _keyboard_move_axis(screen_axis: float, stick_basis: StickBasis) -> float:
     if screen_axis == 0.0:
         return 0.0
-    up_move_component, _ = stick_basis.components(0.0, -STICK_DEAD_ZONE_PX)
-    return screen_axis if up_move_component >= 0.0 else -screen_axis
+    right_move_component, _ = stick_basis.components(STICK_DEAD_ZONE_PX, 0.0)
+    return screen_axis if right_move_component >= 0.0 else -screen_axis
 
 
 def _camera_button_at(x: float, y: float) -> CameraShotId | None:
