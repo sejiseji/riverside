@@ -20,7 +20,7 @@ class RendererTests(TestCase):
         self.assertEqual(_face_sort_depth(points), 10.0)
 
     def test_object_sort_depths_follow_camera_line_depth(self) -> None:
-        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_HIGH], 0.0, 0.0)
+        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
         negative_z_depth, _ = _object_sort_depths(Vec3(0.0, 0.0, -36.0), shot_a)
         positive_z_depth, _ = _object_sort_depths(Vec3(0.0, 0.0, 36.0), shot_a)
         self.assertGreater(negative_z_depth, positive_z_depth)
@@ -36,7 +36,7 @@ class RendererTests(TestCase):
         self.assertGreater(positive_z_depth, negative_z_depth)
 
     def test_object_sort_depths_follow_camera_route_depth(self) -> None:
-        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_HIGH], 0.0, 0.0)
+        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
         _, negative_x_depth = _object_sort_depths(Vec3(-40.0, 0.0, 0.0), shot_a)
         _, positive_x_depth = _object_sort_depths(Vec3(40.0, 0.0, 0.0), shot_a)
         self.assertGreater(positive_x_depth, negative_x_depth)

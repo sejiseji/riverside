@@ -286,7 +286,7 @@ def update_stable_move_orientation(previous_orientation: int, screen_x_delta: fl
 
 
 def camera_button_label(shot_id: CameraShotId) -> str:
-    if shot_id == CameraShotId.REAR_RIGHT_HIGH:
+    if shot_id == CameraShotId.REAR_RIGHT_LOW:
         return "A"
     if shot_id == CameraShotId.FRONT_RIGHT_CLOSE:
         return "B"
@@ -295,7 +295,7 @@ def camera_button_label(shot_id: CameraShotId) -> str:
 
 def shot_debug_name(shot_id: CameraShotId) -> str:
     return {
-        CameraShotId.REAR_RIGHT_HIGH: "REAR_RIGHT_HIGH",
+        CameraShotId.REAR_RIGHT_LOW: "REAR_RIGHT_LOW",
         CameraShotId.FRONT_RIGHT_CLOSE: "FRONT_RIGHT_CLOSE",
         CameraShotId.REAR_LEFT_SHALLOW: "REAR_LEFT_SHALLOW",
     }[shot_id]

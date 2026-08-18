@@ -76,7 +76,7 @@ class Stage:
                 lane_mask=ALL_LANE_MASK,
                 rule=CameraRule(
                     allowed_shots=frozenset(
-                        {CameraShotId.REAR_RIGHT_HIGH, CameraShotId.REAR_LEFT_SHALLOW}
+                        {CameraShotId.REAR_RIGHT_LOW, CameraShotId.REAR_LEFT_SHALLOW}
                     ),
                     manual_enabled=True,
                     forced_shot=None,

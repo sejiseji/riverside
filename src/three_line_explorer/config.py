@@ -60,12 +60,12 @@ VISIBLE_SIZE_Z = 120.0
 
 
 class CameraShotId(IntEnum):
-    REAR_RIGHT_HIGH = 0
+    REAR_RIGHT_LOW = 0
     FRONT_RIGHT_CLOSE = 1
     REAR_LEFT_SHALLOW = 2
 
 
-INITIAL_CAMERA = CameraShotId.REAR_RIGHT_HIGH
+INITIAL_CAMERA = CameraShotId.REAR_RIGHT_LOW
 CAMERA_TARGET_Y = 18.0
 CAMERA_FOLLOW_LAG_X = 0.0
 CAMERA_FOLLOW_LAG_Z = 0.0
@@ -74,7 +74,7 @@ HORIZONTAL_FOV = 38.0
 NEAR_PLANE = 4.0
 
 CAMERA_SHOT_SPECS = {
-    CameraShotId.REAR_RIGHT_HIGH: (
+    CameraShotId.REAR_RIGHT_LOW: (
         radians(110.0),
         radians(12.0),
         640.0,

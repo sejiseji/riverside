@@ -15,7 +15,7 @@ from three_line_explorer.config import (
 
 
 CAMERA_BUTTON_RECTS: tuple[tuple[int, int, int, int, CameraShotId], ...] = (
-    (12, 10, 34, 26, CameraShotId.REAR_RIGHT_HIGH),
+    (12, 10, 34, 26, CameraShotId.REAR_RIGHT_LOW),
     (52, 10, 34, 26, CameraShotId.FRONT_RIGHT_CLOSE),
     (92, 10, 34, 26, CameraShotId.REAR_LEFT_SHALLOW),
 )
@@ -199,7 +199,7 @@ class InputAdapter:
         lane_screen_step = 0
 
         if _btnp(pyxel, "KEY_1"):
-            requested_camera = CameraShotId.REAR_RIGHT_HIGH
+            requested_camera = CameraShotId.REAR_RIGHT_LOW
         elif _btnp(pyxel, "KEY_2"):
             requested_camera = CameraShotId.FRONT_RIGHT_CLOSE
         elif _btnp(pyxel, "KEY_3"):

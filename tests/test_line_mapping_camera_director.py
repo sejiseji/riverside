@@ -21,7 +21,7 @@ class LineMappingTests(TestCase):
     def test_initial_camera_projection_matches_screen_axes(self) -> None:
         player = create_player()
 
-        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_HIGH], player.x, player.z)
+        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
         shot_b = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.FRONT_RIGHT_CLOSE], player.x, player.z)
         shot_c = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW], player.x, player.z)
 
@@ -68,14 +68,14 @@ class CameraDirectorTests(TestCase):
         default_rule, _ = stage.active_camera_rule(0.0, 1)
 
         self.assertEqual(
-            director.resolve(default_rule, CameraShotId.REAR_LEFT_SHALLOW, CameraShotId.REAR_RIGHT_HIGH),
+            director.resolve(default_rule, CameraShotId.REAR_LEFT_SHALLOW, CameraShotId.REAR_RIGHT_LOW),
             CameraShotId.REAR_LEFT_SHALLOW,
         )
 
         forced_rule, forced_label = stage.active_camera_rule(160.0, 1)
         self.assertEqual(forced_label, "FORCED_B")
         self.assertEqual(
-            director.resolve(forced_rule, CameraShotId.REAR_RIGHT_HIGH, CameraShotId.REAR_LEFT_SHALLOW),
+            director.resolve(forced_rule, CameraShotId.REAR_RIGHT_LOW, CameraShotId.REAR_LEFT_SHALLOW),
             CameraShotId.FRONT_RIGHT_CLOSE,
         )
         self.assertEqual(director.last_manual_shot, CameraShotId.REAR_LEFT_SHALLOW)
@@ -89,6 +89,6 @@ class CameraDirectorTests(TestCase):
         rule, label = stage.active_camera_rule(-200.0, 1)
         self.assertEqual(label, "ALLOW_A_C")
         self.assertEqual(
-            director.resolve(rule, CameraShotId.FRONT_RIGHT_CLOSE, CameraShotId.REAR_RIGHT_HIGH),
-            CameraShotId.REAR_RIGHT_HIGH,
+            director.resolve(rule, CameraShotId.FRONT_RIGHT_CLOSE, CameraShotId.REAR_RIGHT_LOW),
+            CameraShotId.REAR_RIGHT_LOW,
         )

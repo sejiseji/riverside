@@ -75,16 +75,16 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.pointer_press(196, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.move_axis, 0.0)
 
         pyxel.pointer_hold(236, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.move_axis, 1.0)
         self.assertTrue(adapter.pointer.stick_active)
 
         pyxel.pointer_release(236, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.move_axis, 0.0)
         self.assertFalse(adapter.pointer.stick_active)
 
@@ -93,14 +93,14 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.pointer_press(196, 700)
-        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
 
         pyxel.pointer_hold(196, round(700 - STICK_LANE_STEP_PX + 1))
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.lane_screen_step, 0)
 
         pyxel.pointer_hold(196, round(700 - STICK_LANE_STEP_PX))
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.lane_screen_step, 1)
 
     def test_drag_uses_screen_cardinal_stick_basis(self) -> None:
@@ -114,15 +114,15 @@ class InputAdapterTests(TestCase):
         )
 
         pyxel.pointer_press(196, 700)
-        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, basis)
 
         pyxel.pointer_hold(236, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, basis)
         self.assertEqual(intent.move_axis, -1.0)
         self.assertEqual(intent.lane_screen_step, 0)
 
         pyxel.pointer_hold(196, round(700 - STICK_LANE_STEP_PX - 2.0))
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, basis)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, basis)
         self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, 1)
 
@@ -131,7 +131,7 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.down = {pyxel.KEY_RIGHT}
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, StickBasis())
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, StickBasis())
         self.assertEqual(intent.move_axis, 1.0)
 
         inverted_basis = StickBasis(move_forward_x=-1.0)
@@ -147,12 +147,12 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.pressed = {pyxel.KEY_UP}
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, StickBasis())
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, StickBasis())
         self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, 1)
 
         pyxel.pressed = {pyxel.KEY_DOWN}
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, StickBasis())
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, StickBasis())
         self.assertEqual(intent.move_axis, 0.0)
         self.assertEqual(intent.lane_screen_step, -1)
 
@@ -163,10 +163,10 @@ class InputAdapterTests(TestCase):
         inverted_basis = StickBasis(move_forward_x=-1.0)
 
         pyxel.pointer_press(196, 700)
-        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, initial_basis)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, initial_basis)
 
         pyxel.pointer_hold(236, 700)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT, initial_basis)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, initial_basis)
         self.assertEqual(intent.move_axis, 1.0)
         self.assertEqual(intent.lane_screen_step, 0)
 
@@ -185,20 +185,20 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.pointer_press(196, 700)
-        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
 
         pyxel.pointer_hold(196, round(700 - STICK_LANE_STEP_PX))
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.lane_screen_step, 1)
 
         pyxel.pointer_hold(196, round(700 - STICK_LANE_STEP_PX * 2))
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.lane_screen_step, 0)
 
         repeated = 0
         frames = int(STICK_LANE_REPEAT_DELAY_SECONDS / DT) + 2
         for _ in range(frames):
-            intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+            intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
             repeated = intent.lane_screen_step
             if repeated != 0:
                 break
@@ -210,8 +210,8 @@ class InputAdapterTests(TestCase):
         pyxel = FakePyxel()
 
         pyxel.pointer_press(60, 18)
-        adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
 
         pyxel.pointer_release(60, 18)
-        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_HIGH, DT)
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.requested_camera, CameraShotId.FRONT_RIGHT_CLOSE)
