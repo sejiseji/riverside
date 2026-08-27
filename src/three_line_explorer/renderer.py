@@ -20,6 +20,8 @@ from three_line_explorer.config import (
     NEAR_PLANE,
     PLAYER_OBJECT_ID,
     RenderLayer,
+    RIVER_OBJECT_ID,
+    RIVER_START_Z,
     VISIBLE_VOLUME_OBJECT_ID,
     VIEWPORT_H,
     VIEWPORT_W,
@@ -161,23 +163,7 @@ class Renderer:
         self.render_sprites.clear()
         stats = RenderStats()
 
-        floor_bounds = AABB(
-            Vec3(visible_volume.bounds.minimum.x, GROUND_Y, visible_volume.bounds.minimum.z),
-            Vec3(visible_volume.bounds.maximum.x, GROUND_Y, visible_volume.bounds.maximum.z),
-        )
-        floor_face = make_floor_face(
-            floor_bounds,
-            FLOOR_OBJECT_ID,
-            palette.FLOOR_FILL,
-            palette.FLOOR_OUTLINE,
-        )
-        self._enqueue_face(
-            floor_face,
-            RenderLayer.FLOOR,
-            snapshot,
-            stats,
-            object_sort_center=floor_bounds.center,
-        )
+        self._enqueue_ground_faces(visible_volume.bounds, snapshot, stats)
 
         candidates = stage.candidate_solids(visible_volume.bounds)
         stats.candidate_objects = len(candidates)
@@ -246,6 +232,50 @@ class Renderer:
                 h=h,
             )
         )
+
+    def _enqueue_ground_faces(
+        self,
+        bounds: AABB,
+        snapshot: CameraSnapshot,
+        stats: RenderStats,
+    ) -> None:
+        walkway_max_z = min(bounds.maximum.z, RIVER_START_Z)
+        if bounds.minimum.z < walkway_max_z:
+            walkway_bounds = AABB(
+                Vec3(bounds.minimum.x, GROUND_Y, bounds.minimum.z),
+                Vec3(bounds.maximum.x, GROUND_Y, walkway_max_z),
+            )
+            self._enqueue_face(
+                make_floor_face(
+                    walkway_bounds,
+                    FLOOR_OBJECT_ID,
+                    palette.FLOOR_FILL,
+                    palette.FLOOR_OUTLINE,
+                ),
+                RenderLayer.FLOOR,
+                snapshot,
+                stats,
+                object_sort_center=walkway_bounds.center,
+            )
+
+        river_min_z = max(bounds.minimum.z, RIVER_START_Z)
+        if river_min_z < bounds.maximum.z:
+            river_bounds = AABB(
+                Vec3(bounds.minimum.x, GROUND_Y, river_min_z),
+                Vec3(bounds.maximum.x, GROUND_Y, bounds.maximum.z),
+            )
+            self._enqueue_face(
+                make_floor_face(
+                    river_bounds,
+                    RIVER_OBJECT_ID,
+                    palette.RIVER_FILL,
+                    palette.RIVER_OUTLINE,
+                ),
+                RenderLayer.FLOOR,
+                snapshot,
+                stats,
+                object_sort_center=river_bounds.center,
+            )
 
     def _enqueue_face(
         self,
