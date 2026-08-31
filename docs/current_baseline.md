@@ -1,0 +1,111 @@
+# riverside Current Baseline
+
+This document captures the current implementation baseline for the prototype.
+
+## Core Rules
+
+- Movement logic is limited to X-axis travel plus three discrete Z lanes.
+- The river is visual space on the +Z side, not an extra walkable lane.
+- Player position is stored as the contact-point center.
+- Forward/back movement and lane movement both require the player to face the target direction first.
+- Camera shots A/B/C are stage-fixed shots, independent of player facing.
+- Camera transitions do not stop normal movement or lane input.
+- Visible volume, collision, and solid rendering are based on AABBs.
+- Rendering uses a painter-style sort without a Z buffer.
+- Input is interpreted in screen space.
+- Active drags are rebased when the camera input basis changes.
+- Player sprites load from `.pyxres` first, with embedded data as a fallback.
+- Stage camera zones can force or restrict camera shots.
+
+## Screen
+
+- Logical resolution: 393x852
+- FPS: 60
+- Top UI: 56 px
+- Bottom UI: 80 px
+- 3D viewport: x=0, y=56, w=393, h=716
+
+## World
+
+- +X: route forward
+- -X: route backward
+- +Y: up
+- +Z: riverside
+- -Z: inland
+
+Stage bounds:
+
+- X: -480 .. +480
+- Y: 0 .. 100
+- Z: -60 .. +180
+
+Walkable lanes:
+
+- `LaneId.NEGATIVE_Z`: Z=-36
+- `LaneId.CENTER`: Z=0
+- `LaneId.POSITIVE_Z`: Z=36
+
+River:
+
+- `RIVER_START_Z = LANE_Z[-1] + PLAYER_SIZE_Z * 0.5`
+- Current river start: Z=44
+- River extends to Z=180.
+- Solids must not extend past `RIVER_START_Z`.
+
+## Player
+
+- Size: X=18, Y=30, Z=16
+- Max speed: 72
+- Acceleration: 480
+- Deceleration: 520
+- Turn half-life: 0.04
+- Move-ready yaw tolerance: 12 degrees
+- Lane half-life: 0.055
+- Lane turn delay: 0.10 seconds
+
+## Camera
+
+- Shared horizontal FOV: 38 degrees
+- Target Y: 18
+- Transition duration: 0.85 seconds
+- Near plane: 4
+
+Shots:
+
+- A: `REAR_RIGHT_LOW`, azimuth 110, elevation 12, distance 640
+- B: `FRONT_RIGHT_CLOSE`, azimuth 70, elevation 14, distance 520
+- C: `REAR_LEFT_SHALLOW`, azimuth 240, elevation 6, distance 700
+
+## Input
+
+Keyboard:
+
+- `Left` / `A`: move along route toward screen-left.
+- `Right` / `D`: move along route toward screen-right.
+- `Up` / `W`: request lane movement toward screen-up.
+- `Down` / `S`: request lane movement toward screen-down.
+- `1`, `2`, `3`: request camera A/B/C.
+- `C`: cycle camera.
+- `H`: toggle debug HUD.
+- `B`: toggle visible bounds.
+- `L`: toggle lane guides.
+- `R`: reset.
+- `J`, `K`: debug warp left/right.
+- `Esc`: quit.
+
+Pointer:
+
+- Camera button taps request camera changes.
+- Other drags act as a virtual direction stick.
+- Horizontal drag controls route movement.
+- Vertical drag controls lane movement.
+- Lane drag threshold is 64 px.
+- Lane repeat delay is 0.16 seconds.
+
+## Assets
+
+- Editable sprite resource: `assets/player_sprites.pyxres`
+- Embedded fallback: `src/three_line_explorer/player_sprite_data.py`
+- Current sprite layout: 4 directions x 4 frames
+- Frame size: 48x64
+- Transparent color: Pyxel color 2

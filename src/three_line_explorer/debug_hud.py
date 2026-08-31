@@ -42,7 +42,7 @@ def draw_ui(
         pyxel.text(rect_x + 13, rect_y + 9, camera_button_label(shot_id), palette.UI_TEXT)
 
     pyxel.text(140, 13, f"CAM {camera_button_label(active_camera)} {active_rule_label}", palette.UI_TEXT)
-    flags = f"D:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
+    flags = f"H:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
     pyxel.text(140, 28, flags, palette.UI_MUTED)
 
     _draw_virtual_stick(

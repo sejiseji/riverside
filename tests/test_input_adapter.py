@@ -31,7 +31,8 @@ class FakePyxel:
     KEY_L: int = 15
     KEY_J: int = 16
     KEY_K: int = 17
-    KEY_ESCAPE: int = 18
+    KEY_H: int = 18
+    KEY_ESCAPE: int = 19
     mouse_x: int = 0
     mouse_y: int = 0
     down: set[int] = field(default_factory=set)
@@ -141,6 +142,22 @@ class InputAdapterTests(TestCase):
         pyxel.down = {pyxel.KEY_LEFT}
         intent = adapter.read(pyxel, CameraShotId.FRONT_RIGHT_CLOSE, DT, inverted_basis)
         self.assertEqual(intent.move_axis, 1.0)
+
+    def test_d_moves_right_and_h_toggles_debug_hud(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+
+        pyxel.down = {pyxel.KEY_D}
+        pyxel.pressed = {pyxel.KEY_D}
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, StickBasis())
+        self.assertEqual(intent.move_axis, 1.0)
+        self.assertFalse(intent.debug_toggle_requested)
+
+        pyxel.down = set()
+        pyxel.pressed = {pyxel.KEY_H}
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT, StickBasis())
+        self.assertEqual(intent.move_axis, 0.0)
+        self.assertTrue(intent.debug_toggle_requested)
 
     def test_keyboard_vertical_keys_emit_lane_steps(self) -> None:
         adapter = InputAdapter()

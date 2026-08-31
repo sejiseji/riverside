@@ -232,7 +232,7 @@ class InputAdapter:
             lane_screen_step=lane_screen_step,
             requested_camera=requested_camera,
             reset_requested=_btnp(pyxel, "KEY_R"),
-            debug_toggle_requested=_btnp(pyxel, "KEY_D"),
+            debug_toggle_requested=_btnp(pyxel, "KEY_H"),
             debug_volume_toggle_requested=_btnp(pyxel, "KEY_B"),
             debug_lanes_toggle_requested=_btnp(pyxel, "KEY_L"),
             warp_left_requested=_btnp(pyxel, "KEY_J"),

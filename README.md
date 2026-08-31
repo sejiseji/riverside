@@ -19,6 +19,7 @@ Prototype controls:
 
 - Keyboard: `Left` / `A` and `Right` / `D` move along the route in screen space.
   `Up` / `W` and `Down` / `S` change the target lane in screen space.
+  `H` toggles the debug HUD, `B` toggles bounds, and `L` toggles lane guides.
 - Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick.
   Horizontal drag moves along the route, and vertical drag changes lanes. Camera changes update
   the screen-space mapping from the last rendered camera state.
