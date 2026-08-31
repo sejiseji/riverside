@@ -28,6 +28,15 @@ class StageLayoutTests(TestCase):
             if solid.bounds.maximum.z > RIVER_START_Z:
                 self.fail(f"river-side solid remains outside route: {solid}")
 
+    def test_river_side_inspectable_props_are_not_collision_solids(self) -> None:
+        stage = Stage.create_prototype()
+        self.assertGreaterEqual(len(stage.inspectable_props), 1)
+        solid_ids = {solid.object_id for solid in stage.solids}
+        for prop in stage.inspectable_props:
+            self.assertGreaterEqual(prop.bounds.minimum.z, RIVER_START_Z)
+            self.assertNotIn(prop.render_object_id, solid_ids)
+
     def test_prototype_stage_keeps_prop_count_small(self) -> None:
         stage = Stage.create_prototype()
         self.assertLessEqual(len(stage.solids), 12)
+        self.assertLessEqual(len(stage.inspectable_props), 6)

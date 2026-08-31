@@ -5,12 +5,15 @@ from math import floor
 
 from three_line_explorer.config import (
     CameraShotId,
+    INSPECTABLE_OBJECT_ID_BASE,
     LaneId,
+    RIVER_START_Z,
     STAGE_CHUNK_SIZE_X,
     STAGE_MAX_X,
     STAGE_MIN_X,
 )
 from three_line_explorer.geometry import AabbSolid
+from three_line_explorer.inspection import InspectableProp
 from three_line_explorer.math3d import AABB, Vec3
 
 
@@ -52,11 +55,14 @@ DEFAULT_CAMERA_RULE = CameraRule(
 class Stage:
     solids: tuple[AabbSolid, ...]
     zones: tuple[CameraZone, ...]
+    inspectable_props: tuple[InspectableProp, ...] = ()
     chunks: dict[int, tuple[AabbSolid, ...]] = field(default_factory=dict)
+    prop_chunks: dict[int, tuple[InspectableProp, ...]] = field(default_factory=dict)
 
     @classmethod
     def create_prototype(cls) -> Stage:
         solids = tuple(_create_prototype_solids())
+        inspectable_props = tuple(_create_prototype_inspectable_props())
         zones = (
             CameraZone(
                 x_min=140.0,
@@ -85,7 +91,7 @@ class Stage:
                 label="ALLOW_A_C",
             ),
         )
-        stage = cls(solids=solids, zones=zones)
+        stage = cls(solids=solids, zones=zones, inspectable_props=inspectable_props)
         stage.rebuild_chunks()
         return stage
 
@@ -97,6 +103,14 @@ class Stage:
             for index in range(first, last + 1):
                 mutable.setdefault(index, []).append(solid)
         self.chunks = {index: tuple(values) for index, values in mutable.items()}
+
+        prop_mutable: dict[int, list[InspectableProp]] = {}
+        for prop in self.inspectable_props:
+            first = chunk_index(prop.bounds.minimum.x)
+            last = chunk_index(prop.bounds.maximum.x)
+            for index in range(first, last + 1):
+                prop_mutable.setdefault(index, []).append(prop)
+        self.prop_chunks = {index: tuple(values) for index, values in prop_mutable.items()}
 
     def candidate_solids(self, bounds: AABB) -> tuple[AabbSolid, ...]:
         first = chunk_index(bounds.minimum.x)
@@ -110,6 +124,20 @@ class Stage:
                 seen.add(solid.object_id)
                 if solid.bounds.intersects(bounds):
                     candidates.append(solid)
+        return tuple(candidates)
+
+    def candidate_inspectable_props(self, bounds: AABB) -> tuple[InspectableProp, ...]:
+        first = chunk_index(bounds.minimum.x)
+        last = chunk_index(bounds.maximum.x)
+        seen: set[str] = set()
+        candidates: list[InspectableProp] = []
+        for index in range(first, last + 1):
+            for prop in self.prop_chunks.get(index, ()):
+                if prop.object_id in seen:
+                    continue
+                seen.add(prop.object_id)
+                if prop.bounds.intersects(bounds):
+                    candidates.append(prop)
         return tuple(candidates)
 
     def active_camera_rule(self, player_x: float, lane_index: int) -> tuple[CameraRule, str]:
@@ -169,3 +197,42 @@ def _create_prototype_solids() -> list[AabbSolid]:
 
     add((STAGE_MIN_X, 0.0, -60.0), (STAGE_MIN_X + 10.0, 100.0, -50.0), 7, 6)
     return solids
+
+
+def _create_prototype_inspectable_props() -> list[InspectableProp]:
+    river_z = RIVER_START_Z
+    return [
+        InspectableProp(
+            object_id="river_prop_001",
+            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 1,
+            bounds=AABB(
+                Vec3(72.0, 0.0, river_z + 3.0),
+                Vec3(84.0, 5.0, river_z + 13.0),
+            ),
+            text_key="single_sandal",
+            side_color=5,
+            top_color=6,
+        ),
+        InspectableProp(
+            object_id="river_prop_002",
+            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 2,
+            bounds=AABB(
+                Vec3(-132.0, 0.0, river_z + 5.0),
+                Vec3(-119.0, 4.0, river_z + 11.0),
+            ),
+            text_key="clouded_bottle",
+            side_color=11,
+            top_color=7,
+        ),
+        InspectableProp(
+            object_id="river_prop_003",
+            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 3,
+            bounds=AABB(
+                Vec3(212.0, 0.0, river_z + 4.0),
+                Vec3(225.0, 3.0, river_z + 14.0),
+            ),
+            text_key="folded_note",
+            side_color=9,
+            top_color=10,
+        ),
+    ]

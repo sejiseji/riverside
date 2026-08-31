@@ -4,7 +4,12 @@ from unittest import TestCase
 
 from three_line_explorer import palette
 from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
-from three_line_explorer.config import FLOOR_OBJECT_ID, RIVER_OBJECT_ID, CameraShotId
+from three_line_explorer.config import (
+    FLOOR_OBJECT_ID,
+    INSPECTABLE_OBJECT_ID_BASE,
+    RIVER_OBJECT_ID,
+    CameraShotId,
+)
 from three_line_explorer.math3d import Vec3
 from three_line_explorer.player import create_player
 from three_line_explorer.renderer import Renderer, _face_sort_depth, _object_sort_depths
@@ -44,6 +49,25 @@ class RendererTests(TestCase):
         }
         self.assertEqual(ground_faces[FLOOR_OBJECT_ID], palette.FLOOR_FILL)
         self.assertEqual(ground_faces[RIVER_OBJECT_ID], palette.RIVER_FILL)
+
+    def test_inspectable_props_are_rendered_outside_collision_solids(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        stage = Stage.create_prototype()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        object_ids = {face.object_id for face in renderer.render_faces}
+        self.assertIn(INSPECTABLE_OBJECT_ID_BASE + 1, object_ids)
+        self.assertNotIn(INSPECTABLE_OBJECT_ID_BASE + 1, {solid.object_id for solid in stage.solids})
 
     def test_object_sort_depths_follow_camera_line_depth(self) -> None:
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)

@@ -166,7 +166,8 @@ class Renderer:
         self._enqueue_ground_faces(visible_volume.bounds, snapshot, stats)
 
         candidates = stage.candidate_solids(visible_volume.bounds)
-        stats.candidate_objects = len(candidates)
+        inspectable_props = stage.candidate_inspectable_props(visible_volume.bounds)
+        stats.candidate_objects = len(candidates) + len(inspectable_props)
         for solid in candidates:
             clipped_bounds = intersect_aabb(solid.bounds, visible_volume.bounds)
             if clipped_bounds is None:
@@ -182,6 +183,32 @@ class Renderer:
                     solid.side_color,
                     solid.top_color,
                     solid.outline_color,
+                )
+                object_sort_center = clipped_bounds.center
+            for face in faces:
+                self._enqueue_face(
+                    face,
+                    RenderLayer.SOLID,
+                    snapshot,
+                    stats,
+                    object_sort_center=object_sort_center,
+                )
+
+        for prop in inspectable_props:
+            clipped_bounds = intersect_aabb(prop.bounds, visible_volume.bounds)
+            if clipped_bounds is None:
+                continue
+            if visible_volume.bounds.contains_aabb(prop.bounds):
+                faces = prop.faces
+                object_sort_center = prop.bounds.center
+            else:
+                stats.clipped_boxes += 1
+                faces = make_aabb_faces(
+                    clipped_bounds,
+                    prop.render_object_id,
+                    prop.side_color,
+                    prop.top_color,
+                    prop.outline_color,
                 )
                 object_sort_center = clipped_bounds.center
             for face in faces:

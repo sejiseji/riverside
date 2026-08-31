@@ -12,6 +12,7 @@ from three_line_explorer.config import (
     TAP_MAX_DISTANCE,
     TAP_MAX_SECONDS,
 )
+from three_line_explorer.inspection import PromptSnapshot, ScreenRect
 
 
 CAMERA_BUTTON_RECTS: tuple[tuple[int, int, int, int, CameraShotId], ...] = (
@@ -26,6 +27,8 @@ class ControlIntent:
     move_axis: float
     lane_screen_step: int
     requested_camera: CameraShotId | None
+    inspection_prompt_object_id: str | None
+    text_panel_advance_requested: bool
     reset_requested: bool
     debug_toggle_requested: bool
     debug_volume_toggle_requested: bool
@@ -40,6 +43,8 @@ class PointerIntent:
     move_axis: float = 0.0
     lane_screen_step: int = 0
     requested_camera: CameraShotId | None = None
+    inspection_prompt_object_id: str | None = None
+    text_panel_advance_requested: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,14 +103,37 @@ class PointerTracker:
     drag_y: float = 0.0
     elapsed: float = 0.0
     last_stick_basis: StickBasis = field(default_factory=StickBasis)
+    captured_object_id: str | None = None
+    panel_tap_started_inside: bool = False
 
-    def update(self, pyxel: Any, dt: float, stick_basis: StickBasis) -> PointerIntent:
+    def update(
+        self,
+        pyxel: Any,
+        dt: float,
+        stick_basis: StickBasis,
+        *,
+        prompt_snapshot: PromptSnapshot | None = None,
+        panel_open: bool = False,
+        panel_rect: ScreenRect | None = None,
+    ) -> PointerIntent:
         intent = PointerIntent()
 
         if _btnp(pyxel, "MOUSE_BUTTON_LEFT"):
             self.pressed = True
-            self.mode = (
-                "camera_tap" if _camera_button_at(pyxel.mouse_x, pyxel.mouse_y) else "stick"
+            self.mode = _pointer_down_mode(
+                pyxel.mouse_x,
+                pyxel.mouse_y,
+                prompt_snapshot=prompt_snapshot,
+                panel_open=panel_open,
+                panel_rect=panel_rect,
+            )
+            self.captured_object_id = (
+                prompt_snapshot.object_id if self.mode == "inspection_tap" else None
+            )
+            self.panel_tap_started_inside = (
+                self.mode == "panel_tap"
+                and panel_rect is not None
+                and panel_rect.contains(pyxel.mouse_x, pyxel.mouse_y)
             )
             self.start_x = float(pyxel.mouse_x)
             self.start_y = float(pyxel.mouse_y)
@@ -153,13 +181,19 @@ class PointerTracker:
                 self.lane_cooldown_remaining = STICK_LANE_REPEAT_DELAY_SECONDS
 
         if _btnr(pyxel, "MOUSE_BUTTON_LEFT"):
-            was_tap = (
-                self.mode == "camera_tap"
-                and self.elapsed <= TAP_MAX_SECONDS
-                and hypot(current_x - self.start_x, current_y - self.start_y) <= TAP_MAX_DISTANCE
-            )
-            if was_tap:
+            was_tap = _is_short_tap(current_x, current_y, self.start_x, self.start_y, self.elapsed)
+            if self.mode == "camera_tap" and was_tap:
                 intent.requested_camera = _camera_button_at(current_x, current_y)
+            elif self.mode == "inspection_tap" and was_tap:
+                intent.inspection_prompt_object_id = self.captured_object_id
+            elif (
+                self.mode == "panel_tap"
+                and was_tap
+                and self.panel_tap_started_inside
+                and panel_rect is not None
+                and panel_rect.contains(current_x, current_y)
+            ):
+                intent.text_panel_advance_requested = True
             self.reset()
 
         return intent
@@ -175,6 +209,8 @@ class PointerTracker:
         self.drag_y = 0.0
         self.elapsed = 0.0
         self.last_stick_basis = StickBasis()
+        self.captured_object_id = None
+        self.panel_tap_started_inside = False
 
     @property
     def stick_active(self) -> bool:
@@ -191,12 +227,43 @@ class InputAdapter:
         current_camera: CameraShotId,
         dt: float,
         stick_basis: StickBasis | None = None,
+        *,
+        prompt_snapshot: PromptSnapshot | None = None,
+        panel_open: bool = False,
+        panel_rect: ScreenRect | None = None,
     ) -> ControlIntent:
         if stick_basis is None:
             stick_basis = StickBasis()
 
         requested_camera: CameraShotId | None = None
         lane_screen_step = 0
+        pointer_intent = self.pointer.update(
+            pyxel,
+            dt,
+            stick_basis,
+            prompt_snapshot=prompt_snapshot,
+            panel_open=panel_open,
+            panel_rect=panel_rect,
+        )
+
+        if panel_open:
+            return ControlIntent(
+                move_axis=0.0,
+                lane_screen_step=0,
+                requested_camera=None,
+                inspection_prompt_object_id=None,
+                text_panel_advance_requested=(
+                    pointer_intent.text_panel_advance_requested
+                    or _panel_advance_key_pressed(pyxel)
+                ),
+                reset_requested=_btnp(pyxel, "KEY_R"),
+                debug_toggle_requested=_btnp(pyxel, "KEY_H"),
+                debug_volume_toggle_requested=_btnp(pyxel, "KEY_B"),
+                debug_lanes_toggle_requested=_btnp(pyxel, "KEY_L"),
+                warp_left_requested=False,
+                warp_right_requested=False,
+                quit_requested=_btnp(pyxel, "KEY_ESCAPE"),
+            )
 
         if _btnp(pyxel, "KEY_1"):
             requested_camera = CameraShotId.REAR_RIGHT_LOW
@@ -212,7 +279,6 @@ class InputAdapter:
         elif _btnp(pyxel, "KEY_DOWN") or _btnp(pyxel, "KEY_S"):
             lane_screen_step = -1
 
-        pointer_intent = self.pointer.update(pyxel, dt, stick_basis)
         if pointer_intent.requested_camera is not None:
             requested_camera = pointer_intent.requested_camera
         if pointer_intent.lane_screen_step != 0:
@@ -225,12 +291,19 @@ class InputAdapter:
             keyboard_screen_axis -= 1.0
         keyboard_axis = _keyboard_move_axis(keyboard_screen_axis, stick_basis)
 
+        inspection_prompt_object_id = pointer_intent.inspection_prompt_object_id
         move_axis = keyboard_axis if keyboard_axis != 0.0 else pointer_intent.move_axis
+        if inspection_prompt_object_id is not None:
+            move_axis = 0.0
+            lane_screen_step = 0
+            requested_camera = None
 
         return ControlIntent(
             move_axis=move_axis,
             lane_screen_step=lane_screen_step,
             requested_camera=requested_camera,
+            inspection_prompt_object_id=inspection_prompt_object_id,
+            text_panel_advance_requested=False,
             reset_requested=_btnp(pyxel, "KEY_R"),
             debug_toggle_requested=_btnp(pyxel, "KEY_H"),
             debug_volume_toggle_requested=_btnp(pyxel, "KEY_B"),
@@ -264,6 +337,48 @@ def _camera_button_at(x: float, y: float) -> CameraShotId | None:
         if _in_rect(x, y, rect_x, rect_y, rect_w, rect_h):
             return shot_id
     return None
+
+
+def _pointer_down_mode(
+    x: float,
+    y: float,
+    *,
+    prompt_snapshot: PromptSnapshot | None,
+    panel_open: bool,
+    panel_rect: ScreenRect | None,
+) -> str:
+    if panel_open:
+        return "panel_tap"
+    if _camera_button_at(x, y) is not None:
+        return "camera_tap"
+    if (
+        prompt_snapshot is not None
+        and prompt_snapshot.visible
+        and prompt_snapshot.hitbox.contains(x, y)
+    ):
+        return "inspection_tap"
+    return "stick"
+
+
+def _is_short_tap(
+    current_x: float,
+    current_y: float,
+    start_x: float,
+    start_y: float,
+    elapsed: float,
+) -> bool:
+    return (
+        elapsed <= TAP_MAX_SECONDS
+        and hypot(current_x - start_x, current_y - start_y) <= TAP_MAX_DISTANCE
+    )
+
+
+def _panel_advance_key_pressed(pyxel: Any) -> bool:
+    return (
+        _btnp(pyxel, "KEY_Z")
+        or _btnp(pyxel, "KEY_RETURN")
+        or _btnp(pyxel, "KEY_SPACE")
+    )
 
 
 def _in_rect(x: float, y: float, rect_x: int, rect_y: int, rect_w: int, rect_h: int) -> bool:

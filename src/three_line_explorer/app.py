@@ -18,9 +18,23 @@ from three_line_explorer.camera_director import CameraDirector
 from three_line_explorer.config import DT, FPS, SCREEN_H, SCREEN_W
 from three_line_explorer.debug_hud import draw_debug_hud, draw_ui
 from three_line_explorer.input import InputAdapter, StickBasis
+from three_line_explorer.inspection import (
+    InteractionState,
+    PromptSnapshot,
+    advance_or_close_inspection,
+    can_open_prop,
+    draw_inspection_panel,
+    draw_inspection_prompt,
+    find_prop_by_id,
+    open_inspection,
+    panel_rect,
+    prompt_snapshot_for_prop,
+    update_active_target,
+)
 from three_line_explorer.player import (
     PlayerState,
     create_player,
+    player_bounds_at,
     reset_player,
     request_lane_change_by_world_step,
     update_player,
@@ -66,8 +80,10 @@ class App:
         self.debug_visible = False
         self.show_volume = False
         self.show_lanes = False
+        self.interaction = InteractionState()
         self.last_stats = RenderStats()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
+        self.last_rendered_prompt: PromptSnapshot | None = None
         self.last_stick_basis = self._stick_basis_from_last_render()
 
     def _initial_snapshot(self) -> CameraSnapshot:
@@ -106,12 +122,22 @@ class App:
         self.camera = CameraRig.create()
         self.director = CameraDirector()
         self.input.pointer.reset()
+        self.interaction = InteractionState()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
+        self.last_rendered_prompt = None
 
     def update(self) -> None:
         pyxel = self.pyxel
         self.last_stick_basis = self._stick_basis_from_last_render()
-        intent = self.input.read(pyxel, self.director.effective_shot, DT, self.last_stick_basis)
+        intent = self.input.read(
+            pyxel,
+            self.director.effective_shot,
+            DT,
+            self.last_stick_basis,
+            prompt_snapshot=self.last_rendered_prompt,
+            panel_open=self.interaction.panel_open,
+            panel_rect=panel_rect(),
+        )
 
         if intent.quit_requested:
             pyxel.quit()
@@ -131,6 +157,19 @@ class App:
             warp_player_near_left(self.player)
         if intent.warp_right_requested:
             warp_player_near_right(self.player)
+
+        if self.interaction.panel_open:
+            self.player.velocity_x = 0.0
+            if intent.text_panel_advance_requested:
+                advance_or_close_inspection(self.interaction)
+            self.camera.update(DT)
+            return
+
+        if intent.inspection_prompt_object_id is not None:
+            self._try_open_inspection(intent.inspection_prompt_object_id)
+            self.player.velocity_x = 0.0
+            self.camera.update(DT)
+            return
 
         if intent.lane_screen_step != 0:
             world_step = (
@@ -158,6 +197,19 @@ class App:
         )
         self.camera.request_shot(desired_shot)
         self.camera.update(DT)
+        update_active_target(
+            self.interaction,
+            player_bounds_at(self.player.x, self.player.z),
+            self.stage.inspectable_props,
+        )
+
+    def _try_open_inspection(self, object_id: str) -> None:
+        prop = find_prop_by_id(self.stage.inspectable_props, object_id)
+        if prop is None:
+            return
+        if not can_open_prop(player_bounds_at(self.player.x, self.player.z), prop):
+            return
+        open_inspection(self.interaction, prop)
 
     def draw(self) -> None:
         pyxel = self.pyxel
@@ -183,6 +235,7 @@ class App:
             show_volume=self.show_volume,
             show_lanes=self.show_lanes,
         )
+        self.last_rendered_prompt = None
 
         lane_x = compute_lane_screen_x(snapshot, self.player.x)
         lane_y = compute_lane_screen_y(snapshot, self.player.x)
@@ -202,6 +255,10 @@ class App:
             stable_move,
         )
 
+        if not self.interaction.panel_open:
+            prompt = self._draw_active_inspection_prompt(snapshot)
+            self.last_rendered_prompt = prompt
+
         draw_ui(
             pyxel,
             active_camera=self.director.effective_shot,
@@ -212,7 +269,10 @@ class App:
             debug_visible=self.debug_visible,
             show_volume=self.show_volume,
             show_lanes=self.show_lanes,
+            bottom_controls_visible=not self.interaction.panel_open,
         )
+        if self.interaction.panel_open:
+            draw_inspection_panel(pyxel, self.interaction)
         if self.debug_visible:
             draw_debug_hud(
                 pyxel,
@@ -223,6 +283,22 @@ class App:
                 active_rule_label=self.active_rule_label,
                 transition_progress=self.camera.transition_progress,
             )
+
+    def _draw_active_inspection_prompt(
+        self,
+        snapshot: CameraSnapshot,
+    ) -> PromptSnapshot | None:
+        prop = find_prop_by_id(
+            self.stage.inspectable_props,
+            self.interaction.active_target_id,
+        )
+        if prop is None:
+            return None
+        prompt = prompt_snapshot_for_prop(prop, snapshot, self.visible_volume.bounds)
+        if prompt is None:
+            return None
+        draw_inspection_prompt(self.pyxel, prompt)
+        return prompt
 
 
 def main() -> None:

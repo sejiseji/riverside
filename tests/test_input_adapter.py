@@ -10,6 +10,7 @@ from three_line_explorer.config import (
     STICK_LANE_STEP_PX,
 )
 from three_line_explorer.input import InputAdapter, StickBasis
+from three_line_explorer.inspection import PromptSnapshot, ScreenRect, panel_rect
 
 
 @dataclass(slots=True)
@@ -33,6 +34,9 @@ class FakePyxel:
     KEY_K: int = 17
     KEY_H: int = 18
     KEY_ESCAPE: int = 19
+    KEY_Z: int = 20
+    KEY_RETURN: int = 21
+    KEY_SPACE: int = 22
     mouse_x: int = 0
     mouse_y: int = 0
     down: set[int] = field(default_factory=set)
@@ -232,3 +236,79 @@ class InputAdapterTests(TestCase):
         pyxel.pointer_release(60, 18)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.requested_camera, CameraShotId.FRONT_RIGHT_CLOSE)
+
+    def test_prompt_tap_requests_inspection_without_starting_stick(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        prompt = PromptSnapshot(
+            object_id="river_prop_001",
+            hitbox=ScreenRect(100, 200, 40, 40),
+            visible=True,
+        )
+
+        pyxel.pointer_press(120, 220)
+        intent = adapter.read(
+            pyxel,
+            CameraShotId.REAR_RIGHT_LOW,
+            DT,
+            prompt_snapshot=prompt,
+        )
+        self.assertEqual(intent.move_axis, 0.0)
+        self.assertFalse(adapter.pointer.stick_active)
+
+        pyxel.pointer_release(120, 220)
+        intent = adapter.read(
+            pyxel,
+            CameraShotId.REAR_RIGHT_LOW,
+            DT,
+            prompt_snapshot=prompt,
+        )
+        self.assertEqual(intent.inspection_prompt_object_id, "river_prop_001")
+        self.assertEqual(intent.move_axis, 0.0)
+
+    def test_panel_tap_advances_without_starting_stick(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        rect = panel_rect()
+
+        pyxel.pointer_press(rect.x + 10, rect.y + 10)
+        intent = adapter.read(
+            pyxel,
+            CameraShotId.REAR_RIGHT_LOW,
+            DT,
+            panel_open=True,
+            panel_rect=rect,
+        )
+        self.assertFalse(adapter.pointer.stick_active)
+        self.assertFalse(intent.text_panel_advance_requested)
+
+        pyxel.pointer_release(rect.x + 10, rect.y + 10)
+        intent = adapter.read(
+            pyxel,
+            CameraShotId.REAR_RIGHT_LOW,
+            DT,
+            panel_open=True,
+            panel_rect=rect,
+        )
+        self.assertTrue(intent.text_panel_advance_requested)
+        self.assertEqual(intent.move_axis, 0.0)
+
+    def test_panel_open_suppresses_movement_keys(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        pyxel.down = {pyxel.KEY_RIGHT}
+        pyxel.pressed = {pyxel.KEY_SPACE}
+
+        intent = adapter.read(
+            pyxel,
+            CameraShotId.REAR_RIGHT_LOW,
+            DT,
+            StickBasis(),
+            panel_open=True,
+            panel_rect=panel_rect(),
+        )
+
+        self.assertEqual(intent.move_axis, 0.0)
+        self.assertEqual(intent.lane_screen_step, 0)
+        self.assertIsNone(intent.requested_camera)
+        self.assertTrue(intent.text_panel_advance_requested)

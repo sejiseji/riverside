@@ -23,6 +23,9 @@ Prototype controls:
 - Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick.
   Horizontal drag moves along the route, and vertical drag changes lanes. Camera changes update
   the screen-space mapping from the last rendered camera state.
+- Inspection: when a nearby riverside prop is active, tap the yellow marker to open its panel.
+  While the panel is open, movement and manual camera input are suppressed; tap the panel or
+  press `Z`, `Enter`, or `Space` to advance and close it.
 
 Player sprites:
 

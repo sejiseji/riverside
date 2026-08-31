@@ -16,6 +16,8 @@ This document captures the current implementation baseline for the prototype.
 - Active drags are rebased when the camera input basis changes.
 - Player sprites load from `.pyxres` first, with embedded data as a fallback.
 - Stage camera zones can force or restrict camera shots.
+- Inspectable riverside props are non-collision objects with their own proximity and text data.
+- Inspection prompts are 2D UI markers projected from 3D anchor points.
 
 ## Screen
 
@@ -51,6 +53,7 @@ River:
 - Current river start: Z=44
 - River extends to Z=180.
 - Solids must not extend past `RIVER_START_Z`.
+- Low inspectable props may be placed beyond `RIVER_START_Z`; they are not collision solids.
 
 ## Player
 
@@ -101,6 +104,28 @@ Pointer:
 - Vertical drag controls lane movement.
 - Lane drag threshold is 64 px.
 - Lane repeat delay is 0.16 seconds.
+- If an inspection panel is open, pointer input is consumed by the panel instead of the stick.
+- If an inspection prompt is tapped, that pointer sequence is captured and does not start stick input.
+
+## Inspection
+
+- Data type: `InspectableProp`
+- Collection: `Stage.inspectable_props`
+- Collision: none
+- Rendering: low AABB faces in the normal world render queue
+- Active target count: one nearest target
+- Proximity test: world-space X/Z AABB overlap
+- Acquisition padding: X=28, Z=12
+- Release padding: X=36, Z=18
+- Marker anchor: prop top center plus `marker_height`
+- Marker draw: fixed 2D triangle after projecting the 3D anchor
+- Marker hitbox: 40x40 px
+- Panel rect: x=12, y=626, w=369, h=210
+- Panel behavior: movement and manual camera requests stop while open
+- Existing camera transitions continue while the panel is open
+- Page advance: panel tap, `Z`, `Enter`, or `Space`
+- Read history: `InteractionState.inspected_ids`
+- Current text is ASCII prototype copy; Japanese font/data can be swapped in later.
 
 ## Assets
 

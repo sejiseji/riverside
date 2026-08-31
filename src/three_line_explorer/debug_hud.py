@@ -31,9 +31,11 @@ def draw_ui(
     debug_visible: bool,
     show_volume: bool,
     show_lanes: bool,
+    bottom_controls_visible: bool = True,
 ) -> None:
     pyxel.rect(0, 0, SCREEN_W, TOP_UI_HEIGHT, palette.UI_PANEL)
-    pyxel.rect(0, SCREEN_H - BOTTOM_UI_HEIGHT, SCREEN_W, BOTTOM_UI_HEIGHT, palette.UI_PANEL)
+    if bottom_controls_visible:
+        pyxel.rect(0, SCREEN_H - BOTTOM_UI_HEIGHT, SCREEN_W, BOTTOM_UI_HEIGHT, palette.UI_PANEL)
 
     for rect_x, rect_y, rect_w, rect_h, shot_id in CAMERA_BUTTON_RECTS:
         fill = palette.UI_ACTIVE if shot_id == active_camera else palette.UI_PANEL_ALT
@@ -45,12 +47,13 @@ def draw_ui(
     flags = f"H:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
     pyxel.text(140, 28, flags, palette.UI_MUTED)
 
-    _draw_virtual_stick(
-        pyxel,
-        stick_active=stick_active,
-        stick_offset=stick_offset,
-        stick_basis=stick_basis,
-    )
+    if bottom_controls_visible:
+        _draw_virtual_stick(
+            pyxel,
+            stick_active=stick_active,
+            stick_offset=stick_offset,
+            stick_basis=stick_basis,
+        )
 
 
 def _draw_virtual_stick(
