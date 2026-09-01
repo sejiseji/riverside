@@ -23,7 +23,7 @@ from three_line_explorer.config import (
     VIEWPORT_X,
     VIEWPORT_Y,
 )
-from three_line_explorer.geometry import Face, make_aabb_faces
+from three_line_explorer.inspection_prop_sprites import PropSpriteId
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.projection import project_world_point
 from three_line_explorer.text_layout import (
@@ -58,29 +58,13 @@ class InspectableProp:
     render_object_id: int
     bounds: AABB
     text_key: str
+    sprite_id: PropSpriteId
     marker_height: float = 8.0
     acquire_padding_x: float = 28.0
     acquire_padding_z: float = 12.0
     release_padding_x: float = 36.0
     release_padding_z: float = 18.0
     repeatable: bool = True
-    side_color: int = palette.INSPECTABLE_SIDE
-    top_color: int = palette.INSPECTABLE_TOP
-    outline_color: int = palette.INSPECTABLE_OUTLINE
-    faces: tuple[Face, ...] = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "faces",
-            make_aabb_faces(
-                self.bounds,
-                self.render_object_id,
-                self.side_color,
-                self.top_color,
-                self.outline_color,
-            ),
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,6 +193,14 @@ def marker_world_position(prop: InspectableProp) -> Vec3:
     return Vec3(
         (prop.bounds.minimum.x + prop.bounds.maximum.x) * 0.5,
         prop.bounds.maximum.y + prop.marker_height,
+        (prop.bounds.minimum.z + prop.bounds.maximum.z) * 0.5,
+    )
+
+
+def prop_sprite_anchor(prop: InspectableProp) -> Vec3:
+    return Vec3(
+        (prop.bounds.minimum.x + prop.bounds.maximum.x) * 0.5,
+        0.25,
         (prop.bounds.minimum.z + prop.bounds.maximum.z) * 0.5,
     )
 

@@ -20,8 +20,10 @@ from three_line_explorer.inspection import (
     marker_world_position,
     open_inspection,
     prompt_snapshot_for_prop,
+    prop_sprite_anchor,
     update_active_target,
 )
+from three_line_explorer.inspection_prop_sprites import PropSpriteId
 from three_line_explorer.inspection_texts import INSPECTION_TEXTS, InspectionText
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import player_bounds_at
@@ -62,7 +64,7 @@ class InspectionTests(TestCase):
 
         update_active_target(
             state,
-            player_bounds_at(78.0, 21.0),
+            player_bounds_at(78.0, 22.0),
             stage.inspectable_props,
         )
         self.assertEqual(state.active_target_id, "river_prop_001")
@@ -81,12 +83,14 @@ class InspectionTests(TestCase):
                 render_object_id=100,
                 bounds=AABB(Vec3(40.0, 0.0, 48.0), Vec3(48.0, 4.0, 56.0)),
                 text_key="single_sandal",
+                sprite_id=PropSpriteId.SINGLE_SANDAL,
             ),
             InspectableProp(
                 object_id="a_prop",
                 render_object_id=101,
                 bounds=AABB(Vec3(40.0, 0.0, 48.0), Vec3(48.0, 4.0, 56.0)),
                 text_key="single_sandal",
+                sprite_id=PropSpriteId.SINGLE_SANDAL,
             ),
         )
         state = InteractionState()
@@ -100,9 +104,18 @@ class InspectionTests(TestCase):
 
         marker = marker_world_position(prop)
 
-        self.assertEqual(marker.x, 78.0)
-        self.assertEqual(marker.y, 13.0)
-        self.assertEqual(marker.z, RIVER_START_Z + 8.0)
+        self.assertEqual(marker.x, 81.0)
+        self.assertEqual(marker.y, 12.0)
+        self.assertEqual(marker.z, RIVER_START_Z + 9.5)
+
+    def test_prop_sprite_anchor_uses_ground_center(self) -> None:
+        prop = Stage.create_prototype().inspectable_props[0]
+
+        anchor = prop_sprite_anchor(prop)
+
+        self.assertEqual(anchor.x, 81.0)
+        self.assertEqual(anchor.y, 0.25)
+        self.assertEqual(anchor.z, RIVER_START_Z + 9.5)
 
     def test_prompt_snapshot_projects_active_prop_to_hitbox(self) -> None:
         prop = Stage.create_prototype().inspectable_props[0]

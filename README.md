@@ -28,6 +28,9 @@ Prototype controls:
   press `Z`, `Enter`, or `Space` to advance and close it.
   The panel uses bundled DotGothic16 Japanese TTF fonts at 18 px for titles and
   16 px for body text.
+  Small riverside props are source-defined Pyxel color maps, generated into a
+  runtime atlas once and rendered through the same sprite depth queue as the
+  player.
 
 Player sprites:
 
@@ -39,6 +42,16 @@ assets/player_sprites.pyxres
 
 The game loads this `.pyxres` first. If it is missing, it falls back to the
 embedded sprite data in `src/three_line_explorer/player_sprite_data.py`.
+
+Inspectable prop sprites:
+
+```text
+src/three_line_explorer/inspection_prop_sprites.py
+```
+
+Each prop sprite is authored as 32x24 rows of Pyxel palette digits. `.` is
+converted to transparent color `8` when the runtime atlas is built. The current
+atlas contains the single sandal, clouded bottle, and driftwood sprites.
 
 Japanese font:
 

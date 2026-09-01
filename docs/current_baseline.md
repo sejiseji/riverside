@@ -112,12 +112,13 @@ Pointer:
 - Main modules:
   - `inspection.py`: target selection, panel state, prompt/panel drawing
   - `inspection_texts.py`: Japanese inspection copy
+  - `inspection_prop_sprites.py`: source-defined Pyxel color-map prop sprites
   - `text_layout.py`: measured wrapping, kinsoku handling, page splitting, cache
   - `ui_fonts.py`: bundled font loading
 - Data type: `InspectableProp`
 - Collection: `Stage.inspectable_props`
 - Collision: none
-- Rendering: low AABB faces in the normal world render queue
+- Rendering: source-defined 32x24 prop sprites in the normal sprite render queue
 - Active target count: one nearest target
 - Proximity test: world-space X/Z AABB overlap
 - Acquisition padding: X=28, Z=12
@@ -131,6 +132,14 @@ Pointer:
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
 - Current text is Japanese prototype copy.
+- Current prop sprite set: single sandal, clouded bottle, driftwood
+- Prop sprite storage: Python source rows using Pyxel palette digits
+- Prop sprite transparent authoring char: `.`
+- Prop sprite transparent palette index: 8
+- Prop sprite anchor: ground center of the prop AABB
+- Prompt marker anchor: top center of the prop AABB plus `marker_height`
+- Prop sprite draw order: same Painter sprite queue as the player, sorted by
+  line depth, route depth, camera depth, and stable object id
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 18 px, body 16 px
@@ -149,6 +158,9 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
+- Source-defined inspection prop sprites: `src/three_line_explorer/inspection_prop_sprites.py`
+- Prop sprite atlas: 3 sprites x 32x24, generated once at runtime
+- Prop sprite image files: none
 - Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`
 - Font third-party notice: `THIRD_PARTY_NOTICES.md`
 

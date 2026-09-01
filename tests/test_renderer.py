@@ -7,12 +7,23 @@ from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
 from three_line_explorer.config import (
     FLOOR_OBJECT_ID,
     INSPECTABLE_OBJECT_ID_BASE,
+    PLAYER_OBJECT_ID,
     RIVER_OBJECT_ID,
     CameraShotId,
 )
+from three_line_explorer.inspection_prop_sprites import (
+    PropSpriteAtlas,
+    SpriteRegion,
+    PropSpriteId,
+)
 from three_line_explorer.math3d import Vec3
 from three_line_explorer.player import create_player
-from three_line_explorer.renderer import Renderer, _face_sort_depth, _object_sort_depths
+from three_line_explorer.renderer import (
+    Renderer,
+    _face_sort_depth,
+    _object_sort_depths,
+    _render_sprite_sort_key,
+)
 from three_line_explorer.stage import Stage
 from three_line_explorer.visible_volume import update_visible_volume
 
@@ -50,8 +61,9 @@ class RendererTests(TestCase):
         self.assertEqual(ground_faces[FLOOR_OBJECT_ID], palette.FLOOR_FILL)
         self.assertEqual(ground_faces[RIVER_OBJECT_ID], palette.RIVER_FILL)
 
-    def test_inspectable_props_are_rendered_outside_collision_solids(self) -> None:
+    def test_inspectable_props_are_rendered_as_sprites_outside_collision_solids(self) -> None:
         renderer = Renderer.create()
+        renderer.prop_sprite_atlas = make_fake_prop_atlas()
         player = create_player()
         stage = Stage.create_prototype()
         snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
@@ -65,9 +77,42 @@ class RendererTests(TestCase):
             show_lanes=False,
         )
 
-        object_ids = {face.object_id for face in renderer.render_faces}
+        object_ids = {sprite.object_id for sprite in renderer.render_sprites}
         self.assertIn(INSPECTABLE_OBJECT_ID_BASE + 1, object_ids)
         self.assertNotIn(INSPECTABLE_OBJECT_ID_BASE + 1, {solid.object_id for solid in stage.solids})
+        self.assertNotIn(
+            INSPECTABLE_OBJECT_ID_BASE + 1,
+            {face.object_id for face in renderer.render_faces},
+        )
+
+    def test_sprite_sort_key_uses_depth_before_object_id(self) -> None:
+        renderer = Renderer.create()
+        renderer.prop_sprite_atlas = make_fake_prop_atlas()
+        player = create_player()
+        stage = Stage.create_prototype()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+        prop_sprite = next(
+            sprite
+            for sprite in renderer.render_sprites
+            if sprite.object_id == INSPECTABLE_OBJECT_ID_BASE + 1
+        )
+        prop_key = _render_sprite_sort_key(prop_sprite)
+        player_key = _render_sprite_sort_key(player_sprite)
+        self.assertEqual(prop_key[3], -prop_sprite.depth)
+        self.assertEqual(player_key[3], -player_sprite.depth)
+        self.assertEqual(prop_key[4], prop_sprite.object_id)
+        self.assertEqual(player_key[4], player_sprite.object_id)
 
     def test_object_sort_depths_follow_camera_line_depth(self) -> None:
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
@@ -100,3 +145,21 @@ class RendererTests(TestCase):
         _, negative_x_depth = _object_sort_depths(Vec3(-40.0, 0.0, 0.0), shot_c)
         _, positive_x_depth = _object_sort_depths(Vec3(40.0, 0.0, 0.0), shot_c)
         self.assertGreater(positive_x_depth, negative_x_depth)
+
+
+def make_fake_prop_atlas() -> PropSpriteAtlas:
+    return PropSpriteAtlas(
+        image=object(),
+        regions={
+            sprite_id: SpriteRegion(
+                u=index * 32,
+                v=0,
+                width=32,
+                height=24,
+                anchor_x=16,
+                anchor_y=23,
+                world_width=20.0,
+            )
+            for index, sprite_id in enumerate(PropSpriteId)
+        },
+    )

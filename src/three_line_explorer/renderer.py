@@ -29,6 +29,13 @@ from three_line_explorer.config import (
     VIEWPORT_Y,
 )
 from three_line_explorer.geometry import Face, make_aabb_faces, make_floor_face
+from three_line_explorer.inspection import prop_sprite_anchor
+from three_line_explorer.inspection_prop_sprites import (
+    PropSpriteAtlas,
+    TRANSPARENT_COLOR as PROP_SPRITE_TRANSPARENT_COLOR,
+    build_prop_sprite_atlas,
+    calculate_sprite_scale,
+)
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import PlayerState
 from three_line_explorer.player_sprite import (
@@ -75,11 +82,15 @@ class RenderSprite:
     depth: float
     object_id: int
     anchor: ProjectedPoint
-    image_bank: int
+    image_source: Any
     u: int
     v: int
     w: int
     h: int
+    anchor_offset_x: float
+    anchor_offset_y: float
+    scale: float
+    colkey: int
 
 
 @dataclass(slots=True)
@@ -96,6 +107,7 @@ class Renderer:
     render_faces: list[RenderFace]
     render_lines: list[RenderLine]
     render_sprites: list[RenderSprite]
+    prop_sprite_atlas: PropSpriteAtlas | None = None
 
     @classmethod
     def create(cls) -> Renderer:
@@ -113,6 +125,8 @@ class Renderer:
         show_lanes: bool,
     ) -> RenderStats:
         load_player_sprite_sheet(pyxel)
+        if self.prop_sprite_atlas is None:
+            self.prop_sprite_atlas = build_prop_sprite_atlas(pyxel)
         stats = self.build_scene(
             stage,
             visible_volume,
@@ -195,30 +209,7 @@ class Renderer:
                 )
 
         for prop in inspectable_props:
-            clipped_bounds = intersect_aabb(prop.bounds, visible_volume.bounds)
-            if clipped_bounds is None:
-                continue
-            if visible_volume.bounds.contains_aabb(prop.bounds):
-                faces = prop.faces
-                object_sort_center = prop.bounds.center
-            else:
-                stats.clipped_boxes += 1
-                faces = make_aabb_faces(
-                    clipped_bounds,
-                    prop.render_object_id,
-                    prop.side_color,
-                    prop.top_color,
-                    prop.outline_color,
-                )
-                object_sort_center = clipped_bounds.center
-            for face in faces:
-                self._enqueue_face(
-                    face,
-                    RenderLayer.SOLID,
-                    snapshot,
-                    stats,
-                    object_sort_center=object_sort_center,
-                )
+            self._enqueue_inspectable_prop_sprite(prop, visible_volume.bounds, snapshot)
 
         self._enqueue_player_sprite(player, snapshot, frame_count)
 
@@ -252,11 +243,62 @@ class Renderer:
                 depth=camera_point.z,
                 object_id=PLAYER_OBJECT_ID,
                 anchor=projected,
-                image_bank=image_bank,
+                image_source=image_bank,
                 u=u,
                 v=v,
                 w=w,
                 h=h,
+                anchor_offset_x=PLAYER_SPRITE_FRAME_W * 0.5,
+                anchor_offset_y=PLAYER_SPRITE_FRAME_H,
+                scale=1.0,
+                colkey=PLAYER_SPRITE_TRANSPARENT_COLOR,
+            )
+        )
+
+    def _enqueue_inspectable_prop_sprite(
+        self,
+        prop: Any,
+        visible_bounds: AABB,
+        snapshot: CameraSnapshot,
+    ) -> None:
+        atlas = self.prop_sprite_atlas
+        if atlas is None or not visible_bounds.intersects(prop.bounds):
+            return
+
+        anchor_world = prop_sprite_anchor(prop)
+        camera_point = world_to_camera(snapshot, anchor_world)
+        projected = project_camera_point(snapshot, camera_point)
+        if projected is None:
+            return
+
+        region = atlas.regions[prop.sprite_id]
+        scale = calculate_sprite_scale(
+            snapshot.focal_px,
+            camera_point.z,
+            region.world_width,
+            region.width,
+        )
+        if scale <= 0.0:
+            return
+
+        lane_depth, route_depth = _object_sort_depths(anchor_world, snapshot)
+        self.render_sprites.append(
+            RenderSprite(
+                layer=RenderLayer.SOLID,
+                lane_depth=lane_depth,
+                route_depth=route_depth,
+                depth=camera_point.z,
+                object_id=prop.render_object_id,
+                anchor=projected,
+                image_source=atlas.image,
+                u=region.u,
+                v=region.v,
+                w=region.width,
+                h=region.height,
+                anchor_offset_x=region.anchor_x,
+                anchor_offset_y=region.anchor_y,
+                scale=scale,
+                colkey=PROP_SPRITE_TRANSPARENT_COLOR,
             )
         )
 
@@ -492,24 +534,24 @@ def _draw_face(pyxel: Any, face: RenderFace) -> None:
         pyxel.line(round(start.x), round(start.y), round(end.x), round(end.y), face.outline_color)
 
 
-def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, int, float, int]:
+def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, float, int, int]:
     return (
         face.layer,
         -face.lane_depth,
         -face.route_depth,
-        face.object_id,
         -face.depth,
+        face.object_id,
         face.face_index,
     )
 
 
-def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, int, float, int]:
+def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, float, int, int]:
     return (
         sprite.layer,
         -sprite.lane_depth,
         -sprite.route_depth,
-        sprite.object_id,
         -sprite.depth,
+        sprite.object_id,
         0,
     )
 
@@ -523,17 +565,18 @@ def _face_sort_depth(camera_points: tuple[Vec3, ...]) -> float:
 
 
 def _draw_sprite(pyxel: Any, sprite: RenderSprite) -> None:
-    x = round(sprite.anchor.x - PLAYER_SPRITE_FRAME_W * 0.5)
-    y = round(sprite.anchor.y - PLAYER_SPRITE_FRAME_H)
+    x = round(sprite.anchor.x - sprite.anchor_offset_x * sprite.scale)
+    y = round(sprite.anchor.y - sprite.anchor_offset_y * sprite.scale)
     pyxel.blt(
         x,
         y,
-        sprite.image_bank,
+        sprite.image_source,
         sprite.u,
         sprite.v,
         sprite.w,
         sprite.h,
-        PLAYER_SPRITE_TRANSPARENT_COLOR,
+        sprite.colkey,
+        scale=sprite.scale,
     )
 
 

@@ -24,11 +24,11 @@ INSPECTION_TEXTS: dict[str, InspectionText] = {
             "長いあいだ流されていたのか、ガラスは白くくもっている。",
         ),
     ),
-    "folded_note": InspectionText(
-        title="折りたたまれたメモ",
+    "driftwood": InspectionText(
+        title="流木",
         pages=(
-            "紙は濡れているが、黒い線がいくつか透けて見える。",
-            "ただのごみというより、誰かが大事に持っていたものに見える。",
+            "角の丸くなった木片が、浅瀬に引っかかっている。",
+            "水に削られた表面だけが、妙にすべすべしている。",
         ),
     ),
 }

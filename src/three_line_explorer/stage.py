@@ -14,6 +14,7 @@ from three_line_explorer.config import (
 )
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.inspection import InspectableProp
+from three_line_explorer.inspection_prop_sprites import PropSpriteId
 from three_line_explorer.math3d import AABB, Vec3
 
 
@@ -206,33 +207,30 @@ def _create_prototype_inspectable_props() -> list[InspectableProp]:
             object_id="river_prop_001",
             render_object_id=INSPECTABLE_OBJECT_ID_BASE + 1,
             bounds=AABB(
-                Vec3(72.0, 0.0, river_z + 3.0),
-                Vec3(84.0, 5.0, river_z + 13.0),
+                Vec3(72.0, 0.0, river_z + 4.0),
+                Vec3(90.0, 4.0, river_z + 15.0),
             ),
             text_key="single_sandal",
-            side_color=5,
-            top_color=6,
+            sprite_id=PropSpriteId.SINGLE_SANDAL,
         ),
         InspectableProp(
             object_id="river_prop_002",
             render_object_id=INSPECTABLE_OBJECT_ID_BASE + 2,
             bounds=AABB(
-                Vec3(-132.0, 0.0, river_z + 5.0),
-                Vec3(-119.0, 4.0, river_z + 11.0),
+                Vec3(-42.0, 0.0, river_z + 5.0),
+                Vec3(-22.0, 4.0, river_z + 15.0),
             ),
             text_key="clouded_bottle",
-            side_color=11,
-            top_color=7,
+            sprite_id=PropSpriteId.CLOUDED_BOTTLE,
         ),
         InspectableProp(
             object_id="river_prop_003",
             render_object_id=INSPECTABLE_OBJECT_ID_BASE + 3,
             bounds=AABB(
-                Vec3(212.0, 0.0, river_z + 4.0),
-                Vec3(225.0, 3.0, river_z + 14.0),
+                Vec3(182.0, 0.0, river_z + 4.0),
+                Vec3(206.0, 5.0, river_z + 17.0),
             ),
-            text_key="folded_note",
-            side_color=9,
-            top_color=10,
+            text_key="driftwood",
+            sprite_id=PropSpriteId.DRIFTWOOD,
         ),
     ]
