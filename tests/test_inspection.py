@@ -138,3 +138,24 @@ class InspectionTests(TestCase):
 
         self.assertGreater(len(lines), 1)
         self.assertTrue(all(_display_width(line) <= 14 for line in lines))
+
+    def test_wrap_uses_font_text_width_when_available(self) -> None:
+        font = FakeFont(width_per_char=12)
+
+        lines = _wrap_display_text(
+            "水を吸って、すっかり重くなっている。",
+            100,
+            font=font,
+            max_width_px=72,
+        )
+
+        self.assertGreater(len(lines), 1)
+        self.assertTrue(all(font.text_width(line) <= 84 for line in lines))
+
+
+class FakeFont:
+    def __init__(self, *, width_per_char: int) -> None:
+        self.width_per_char = width_per_char
+
+    def text_width(self, text: str) -> int:
+        return len(text) * self.width_per_char

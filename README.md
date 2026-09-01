@@ -43,12 +43,12 @@ Japanese font:
 
 ```text
 assets/fonts/umplus_j12r.bdf
-assets/fonts/PixelMplus12-Regular.ttf
 ```
 
-This prototype loads the BDF font first, with the TTF as a fallback. Both are
-Pyxel example font assets. Verify and document the upstream font license before
-treating either one as a production asset.
+This prototype follows the Pyxel custom font sample: create `pyxel.Font(...)`
+after `pyxel.init(...)`, pass the font to `pyxel.text(...)`, and use
+`font.text_width(...)` for text measurement. Verify and document the upstream
+font license before treating it as a production asset.
 
 GitHub Pages publishing:
 

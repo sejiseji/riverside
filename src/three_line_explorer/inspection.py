@@ -5,8 +5,7 @@ from typing import Any
 
 from three_line_explorer import palette
 from three_line_explorer.config import (
-    INSPECTION_FONT_PATHS,
-    INSPECTION_FONT_SIZE,
+    INSPECTION_FONT_PATH,
     INSPECTION_PANEL_H,
     INSPECTION_PANEL_W,
     INSPECTION_PANEL_X,
@@ -18,7 +17,7 @@ from three_line_explorer.config import (
     INSPECTION_TEXT_COLUMNS,
     INSPECTION_TEXT_LINE_HEIGHT,
     INSPECTION_TEXT_MAX_LINES,
-    INSPECTION_TITLE_FONT_SIZE,
+    INSPECTION_TEXT_MAX_WIDTH,
     INSPECTION_TITLE_LINE_HEIGHT,
     VIEWPORT_H,
     VIEWPORT_W,
@@ -60,12 +59,6 @@ class PreparedInspectionPage:
     lines: tuple[str, ...]
     page_index: int
     page_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class InspectionFonts:
-    title: Any | None
-    body: Any | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,18 +135,11 @@ INSPECTION_TEXTS: dict[str, InspectionText] = {
 }
 
 
-def load_inspection_fonts(pyxel: Any) -> InspectionFonts:
-    for path in INSPECTION_FONT_PATHS:
-        try:
-            if path.lower().endswith(".bdf"):
-                font = pyxel.Font(path)
-                return InspectionFonts(title=font, body=font)
-            title = pyxel.Font(path, INSPECTION_TITLE_FONT_SIZE)
-            body = pyxel.Font(path, INSPECTION_FONT_SIZE)
-            return InspectionFonts(title=title, body=body)
-        except Exception:
-            continue
-    return InspectionFonts(title=None, body=None)
+def load_inspection_font(pyxel: Any) -> Any | None:
+    try:
+        return pyxel.Font(INSPECTION_FONT_PATH)
+    except Exception:
+        return None
 
 
 def panel_rect() -> ScreenRect:
@@ -295,6 +281,7 @@ def open_inspection(
     state: InteractionState,
     prop: InspectableProp,
     texts: dict[str, InspectionText] | None = None,
+    font: Any | None = None,
 ) -> bool:
     if texts is None:
         texts = INSPECTION_TEXTS
@@ -308,7 +295,7 @@ def open_inspection(
     state.page_index = 0
     state.inspected_ids.add(prop.object_id)
     state.prepared_pages = tuple(
-        _prepare_page(text.title, page, index, len(text.pages))
+        _prepare_page(text.title, page, index, len(text.pages), font=font)
         for index, page in enumerate(text.pages)
     )
     return True
@@ -371,7 +358,7 @@ def draw_inspection_prompt(pyxel: Any, prompt: PromptSnapshot) -> None:
 def draw_inspection_panel(
     pyxel: Any,
     state: InteractionState,
-    fonts: InspectionFonts | None = None,
+    font: Any | None = None,
 ) -> None:
     page = current_page(state)
     rect = panel_rect()
@@ -382,13 +369,16 @@ def draw_inspection_panel(
 
     text_x = rect.x + 12
     y = rect.y + 12
-    title_font = None if fonts is None else fonts.title
-    body_font = None if fonts is None else fonts.body
-    pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT, title_font)
-    y += _title_line_height(fonts)
+    if font is None:
+        pyxel.text(text_x, y, f"FONT LOAD ERROR: {INSPECTION_FONT_PATH}", palette.INSPECTION_PANEL_TEXT)
+        pyxel.text(text_x, y + 10, "Japanese text needs pyxel.Font(...).", palette.INSPECTION_PANEL_TEXT)
+        return
+
+    pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT, font)
+    y += INSPECTION_TITLE_LINE_HEIGHT
     for line in page.lines[:INSPECTION_TEXT_MAX_LINES]:
-        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT, body_font)
-        y += _body_line_height(fonts)
+        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT, font)
+        y += INSPECTION_TEXT_LINE_HEIGHT
 
     footer_y = rect.y + rect.height - 18
     pyxel.text(
@@ -396,14 +386,14 @@ def draw_inspection_panel(
         footer_y,
         f"{page.page_index + 1} / {page.page_count}",
         palette.INSPECTION_PANEL_MUTED,
-        body_font,
+        font,
     )
     pyxel.text(
         rect.x + rect.width - 66,
         footer_y,
         "つぎへ",
         palette.INSPECTION_PANEL_TEXT,
-        body_font,
+        font,
     )
 
 
@@ -412,16 +402,61 @@ def _prepare_page(
     text: str,
     page_index: int,
     page_count: int,
+    *,
+    font: Any | None = None,
 ) -> PreparedInspectionPage:
     return PreparedInspectionPage(
         title=title,
-        lines=tuple(_wrap_display_text(text, INSPECTION_TEXT_COLUMNS)),
+        lines=tuple(
+            _wrap_display_text(
+                text,
+                INSPECTION_TEXT_COLUMNS,
+                font=font,
+                max_width_px=INSPECTION_TEXT_MAX_WIDTH,
+            )
+        ),
         page_index=page_index,
         page_count=page_count,
     )
 
 
-def _wrap_display_text(text: str, columns: int) -> list[str]:
+def _wrap_display_text(
+    text: str,
+    columns: int,
+    *,
+    font: Any | None = None,
+    max_width_px: int | None = None,
+) -> list[str]:
+    if font is not None and max_width_px is not None and hasattr(font, "text_width"):
+        return _wrap_by_font_width(text, font, max_width_px)
+    return _wrap_by_display_columns(text, columns)
+
+
+def _wrap_by_font_width(text: str, font: Any, max_width_px: int) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for char in text:
+        if char == "\n":
+            if current:
+                lines.append(current)
+            current = ""
+            continue
+        next_text = f"{current}{char}"
+        if not current or font.text_width(next_text) <= max_width_px:
+            current = next_text
+        elif char in NO_LINE_START:
+            current = next_text
+            lines.append(current)
+            current = ""
+        else:
+            lines.append(current)
+            current = char
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _wrap_by_display_columns(text: str, columns: int) -> list[str]:
     lines: list[str] = []
     current = ""
     for char in text:
@@ -450,14 +485,6 @@ def _display_width(text: str) -> int:
     for char in text:
         width += 1 if ord(char) < 128 else 2
     return width
-
-
-def _title_line_height(fonts: InspectionFonts | None) -> int:
-    return INSPECTION_TITLE_LINE_HEIGHT if fonts is not None and fonts.title is not None else 18
-
-
-def _body_line_height(fonts: InspectionFonts | None) -> int:
-    return INSPECTION_TEXT_LINE_HEIGHT if fonts is not None and fonts.body is not None else 8
 
 
 def _inside_viewport(x: float, y: float) -> bool:

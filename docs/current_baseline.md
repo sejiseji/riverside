@@ -126,11 +126,11 @@ Pointer:
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
 - Current text is Japanese prototype copy.
-- Font path priority: `assets/fonts/umplus_j12r.bdf`, then
-  `assets/fonts/PixelMplus12-Regular.ttf`
+- Font path: `assets/fonts/umplus_j12r.bdf`
 - Active font target: 12 px BDF
-- Line wrapping is character-width based because local Pyxel has `pyxel.Font`
-  but no `pyxel.text_width` helper.
+- Font usage follows the Pyxel custom font sample: create `pyxel.Font(...)`
+  after `pyxel.init(...)`, pass it to `pyxel.text(...)`, and use
+  `font.text_width(...)` for measurement.
 - The bundled font is a Pyxel example asset; verify and document the upstream
   license before treating it as production-ready.
 
@@ -141,6 +141,4 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
-- Japanese panel fonts:
-  `assets/fonts/umplus_j12r.bdf`,
-  `assets/fonts/PixelMplus12-Regular.ttf`
+- Japanese panel font: `assets/fonts/umplus_j12r.bdf`

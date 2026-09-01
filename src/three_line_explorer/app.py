@@ -26,7 +26,7 @@ from three_line_explorer.inspection import (
     draw_inspection_panel,
     draw_inspection_prompt,
     find_prop_by_id,
-    load_inspection_fonts,
+    load_inspection_font,
     open_inspection,
     panel_rect,
     prompt_snapshot_for_prop,
@@ -82,7 +82,7 @@ class App:
         self.show_volume = False
         self.show_lanes = False
         self.interaction = InteractionState()
-        self.inspection_fonts = load_inspection_fonts(pyxel)
+        self.inspection_font = load_inspection_font(pyxel)
         self.last_stats = RenderStats()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
         self.last_rendered_prompt: PromptSnapshot | None = None
@@ -211,7 +211,7 @@ class App:
             return
         if not can_open_prop(player_bounds_at(self.player.x, self.player.z), prop):
             return
-        open_inspection(self.interaction, prop)
+        open_inspection(self.interaction, prop, font=self.inspection_font)
 
     def draw(self) -> None:
         pyxel = self.pyxel
@@ -274,7 +274,7 @@ class App:
             bottom_controls_visible=not self.interaction.panel_open,
         )
         if self.interaction.panel_open:
-            draw_inspection_panel(pyxel, self.interaction, self.inspection_fonts)
+            draw_inspection_panel(pyxel, self.interaction, self.inspection_font)
         if self.debug_visible:
             draw_debug_hud(
                 pyxel,
