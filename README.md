@@ -68,9 +68,10 @@ The publish script prints the current commit version:
 https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 ```
 
-The page propagates `v` to local `.py`, `.pyxres`, and font loads so Pyxel Web
-does not reuse stale app files.
+The page propagates `v` to the generated `.pyxapp` and local asset loads so
+Pyxel Web does not reuse stale app files.
 
-The publish script places only the Pyxel Web entry files at the Pages root:
-`index.html`, `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
-`run.py` and `src/` are local development files and are not published.
+The publish script packages the app with `pyxel package` and places only
+`index.html`, `riverside.pyxapp`, and `.nojekyll` at the Pages root. Raw source
+files remain local and on the `main` branch; Pages runs the packaged app with
+`pyxel-play`.

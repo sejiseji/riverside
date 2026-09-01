@@ -26,7 +26,8 @@
         box-sizing: border-box;
       }
 
-      pyxel-run {
+      pyxel-run,
+      pyxel-play {
         display: block;
         width: min(100vw, calc(100dvh * 393 / 852), 430px);
         height: min(100dvh, calc(100vw * 852 / 393), 100dvh);
@@ -34,7 +35,8 @@
         touch-action: none;
       }
 
-      pyxel-run canvas {
+      pyxel-run canvas,
+      pyxel-play canvas {
         width: 100% !important;
         height: 100% !important;
         image-rendering: pixelated;
@@ -45,7 +47,8 @@
           padding: 0;
         }
 
-        pyxel-run {
+        pyxel-run,
+        pyxel-play {
           width: 100vw;
           height: 100dvh;
         }
@@ -56,7 +59,8 @@
         const params = new URLSearchParams(window.location.search);
         const token = params.get("v") || Date.now().toString(36);
         const shouldBust = (url) =>
-          url.origin === window.location.origin && /\.(py|pyxres|ttf|otf|bdf)$/i.test(url.pathname);
+          url.origin === window.location.origin &&
+          /\.(pyxapp|py|pyxres|ttf|otf|bdf)$/i.test(url.pathname);
         const bustUrl = (value) => {
           try {
             const url = new URL(value, window.location.href);
@@ -113,6 +117,6 @@
     <script src="https://cdn.jsdelivr.net/gh/kitao/pyxel@v2.9.9/wasm/pyxel.js"></script>
   </head>
   <body>
-    <pyxel-run root="." name="web_bootstrap.py" gamepad="disabled"></pyxel-run>
+    <pyxel-play root="." name="riverside.pyxapp" gamepad="disabled"></pyxel-play>
   </body>
 </html>

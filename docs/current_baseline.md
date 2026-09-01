@@ -142,3 +142,12 @@ Pointer:
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
 - Japanese panel font: `assets/fonts/umplus_j12r.bdf`
+
+## Web Publishing
+
+- Pages entry point: `index.html`
+- Runtime tag: `pyxel-play`
+- Packaged app: `riverside.pyxapp`
+- Package command: `pyxel package riverside riverside/web_bootstrap.py`
+- The `.pyxapp` contains `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
+- Raw `.py` source files are not published separately on `gh-pages`.
