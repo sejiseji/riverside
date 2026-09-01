@@ -5,7 +5,7 @@ from typing import Any
 
 from three_line_explorer import palette
 from three_line_explorer.config import (
-    INSPECTION_FONT_PATH,
+    INSPECTION_FONT_PATHS,
     INSPECTION_FONT_SIZE,
     INSPECTION_PANEL_H,
     INSPECTION_PANEL_W,
@@ -143,12 +143,17 @@ INSPECTION_TEXTS: dict[str, InspectionText] = {
 
 
 def load_inspection_fonts(pyxel: Any) -> InspectionFonts:
-    try:
-        title = pyxel.Font(INSPECTION_FONT_PATH, INSPECTION_TITLE_FONT_SIZE)
-        body = pyxel.Font(INSPECTION_FONT_PATH, INSPECTION_FONT_SIZE)
-    except Exception:
-        return InspectionFonts(title=None, body=None)
-    return InspectionFonts(title=title, body=body)
+    for path in INSPECTION_FONT_PATHS:
+        try:
+            if path.lower().endswith(".bdf"):
+                font = pyxel.Font(path)
+                return InspectionFonts(title=font, body=font)
+            title = pyxel.Font(path, INSPECTION_TITLE_FONT_SIZE)
+            body = pyxel.Font(path, INSPECTION_FONT_SIZE)
+            return InspectionFonts(title=title, body=body)
+        except Exception:
+            continue
+    return InspectionFonts(title=None, body=None)
 
 
 def panel_rect() -> ScreenRect:

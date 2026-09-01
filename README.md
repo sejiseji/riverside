@@ -26,7 +26,7 @@ Prototype controls:
 - Inspection: when a nearby riverside prop is active, tap the yellow marker to open its panel.
   While the panel is open, movement and manual camera input are suppressed; tap the panel or
   press `Z`, `Enter`, or `Space` to advance and close it.
-  The panel uses a bundled Japanese font at 16 px body / 18 px title size.
+  The panel uses a bundled Japanese BDF font.
 
 Player sprites:
 
@@ -42,11 +42,13 @@ embedded sprite data in `src/three_line_explorer/player_sprite_data.py`.
 Japanese font:
 
 ```text
+assets/fonts/umplus_j12r.bdf
 assets/fonts/PixelMplus12-Regular.ttf
 ```
 
-This prototype uses the Pyxel example font asset. Verify and document the
-upstream font license before treating it as a production asset.
+This prototype loads the BDF font first, with the TTF as a fallback. Both are
+Pyxel example font assets. Verify and document the upstream font license before
+treating either one as a production asset.
 
 GitHub Pages publishing:
 
