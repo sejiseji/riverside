@@ -26,6 +26,7 @@ Prototype controls:
 - Inspection: when a nearby riverside prop is active, tap the yellow marker to open its panel.
   While the panel is open, movement and manual camera input are suppressed; tap the panel or
   press `Z`, `Enter`, or `Space` to advance and close it.
+  The panel uses a bundled Japanese font at 16 px body / 18 px title size.
 
 Player sprites:
 
@@ -37,6 +38,15 @@ assets/player_sprites.pyxres
 
 The game loads this `.pyxres` first. If it is missing, it falls back to the
 embedded sprite data in `src/three_line_explorer/player_sprite_data.py`.
+
+Japanese font:
+
+```text
+assets/fonts/PixelMplus12-Regular.ttf
+```
+
+This prototype uses the Pyxel example font asset. Verify and document the
+upstream font license before treating it as a production asset.
 
 GitHub Pages publishing:
 
@@ -56,8 +66,8 @@ The publish script prints the current commit version:
 https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 ```
 
-The page propagates `v` to local `.py` and `.pyxres` loads so Pyxel Web does
-not reuse stale app files.
+The page propagates `v` to local `.py`, `.pyxres`, and font loads so Pyxel Web
+does not reuse stale app files.
 
 The publish script places only the Pyxel Web entry files at the Pages root:
 `index.html`, `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.

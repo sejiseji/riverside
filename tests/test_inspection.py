@@ -14,6 +14,8 @@ from three_line_explorer.inspection import (
     open_inspection,
     prompt_snapshot_for_prop,
     update_active_target,
+    _display_width,
+    _wrap_display_text,
 )
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import player_bounds_at
@@ -119,7 +121,7 @@ class InspectionTests(TestCase):
         page = current_page(state)
         self.assertIsNotNone(page)
         assert page is not None
-        self.assertEqual(page.title, "Single sandal")
+        self.assertEqual(page.title, "片方だけのサンダル")
 
         advance_or_close_inspection(state)
         self.assertTrue(state.panel_open)
@@ -127,3 +129,12 @@ class InspectionTests(TestCase):
 
         advance_or_close_inspection(state)
         self.assertFalse(state.panel_open)
+
+    def test_japanese_wrap_uses_wide_character_columns(self) -> None:
+        lines = _wrap_display_text(
+            "水を吸って、すっかり重くなっている。",
+            12,
+        )
+
+        self.assertGreater(len(lines), 1)
+        self.assertTrue(all(_display_width(line) <= 14 for line in lines))

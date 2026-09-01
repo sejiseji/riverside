@@ -125,7 +125,14 @@ Pointer:
 - Existing camera transitions continue while the panel is open
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
-- Current text is ASCII prototype copy; Japanese font/data can be swapped in later.
+- Current text is Japanese prototype copy.
+- Font path: `assets/fonts/PixelMplus12-Regular.ttf`
+- Body size: 16 px
+- Title size: 18 px
+- Line wrapping is character-width based because local Pyxel has `pyxel.Font`
+  but no `pyxel.text_width` helper.
+- The bundled font is a Pyxel example asset; verify and document the upstream
+  license before treating it as production-ready.
 
 ## Assets
 
@@ -134,3 +141,4 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
+- Japanese panel font: `assets/fonts/PixelMplus12-Regular.ttf`

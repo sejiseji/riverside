@@ -5,6 +5,8 @@ from typing import Any
 
 from three_line_explorer import palette
 from three_line_explorer.config import (
+    INSPECTION_FONT_PATH,
+    INSPECTION_FONT_SIZE,
     INSPECTION_PANEL_H,
     INSPECTION_PANEL_W,
     INSPECTION_PANEL_X,
@@ -14,7 +16,10 @@ from three_line_explorer.config import (
     INSPECTION_PROMPT_HIT_H,
     INSPECTION_PROMPT_HIT_W,
     INSPECTION_TEXT_COLUMNS,
+    INSPECTION_TEXT_LINE_HEIGHT,
     INSPECTION_TEXT_MAX_LINES,
+    INSPECTION_TITLE_FONT_SIZE,
+    INSPECTION_TITLE_LINE_HEIGHT,
     VIEWPORT_H,
     VIEWPORT_W,
     VIEWPORT_X,
@@ -26,6 +31,7 @@ from three_line_explorer.projection import project_world_point
 
 
 PROMPT_BOB_Y = (0, 0, -1, -1, -2, -2, -1, -1)
+NO_LINE_START = frozenset("、。！？）」』】〕〉》")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +60,12 @@ class PreparedInspectionPage:
     lines: tuple[str, ...]
     page_index: int
     page_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class InspectionFonts:
+    title: Any | None
+    body: Any | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,27 +119,36 @@ class InteractionState:
 
 INSPECTION_TEXTS: dict[str, InspectionText] = {
     "single_sandal": InspectionText(
-        title="Single sandal",
+        title="片方だけのサンダル",
         pages=(
-            "Water has made it heavy. Only one side rests near the river.",
-            "Faint marks remain on the sole, but the name is too worn to read.",
+            "水を吸って、すっかり重くなっている。片方だけが川辺に残されていた。",
+            "靴底には名前らしき文字が残っている。けれど半分は削れて読めない。",
         ),
     ),
     "clouded_bottle": InspectionText(
-        title="Clouded bottle",
+        title="くもった小瓶",
         pages=(
-            "A little water is trapped inside. The cap is sealed tight.",
-            "The glass is cloudy, as if it has spent a long time drifting.",
+            "中には水が少し入っている。蓋は固く閉じられていて、開きそうにない。",
+            "長いあいだ流されていたのか、ガラスは白くくもっている。",
         ),
     ),
     "folded_note": InspectionText(
-        title="Folded note",
+        title="折りたたまれたメモ",
         pages=(
-            "The paper is wet, but a few dark lines still show through.",
-            "It looks less like trash and more like something someone kept.",
+            "紙は濡れているが、黒い線がいくつか透けて見える。",
+            "ただのごみというより、誰かが大事に持っていたものに見える。",
         ),
     ),
 }
+
+
+def load_inspection_fonts(pyxel: Any) -> InspectionFonts:
+    try:
+        title = pyxel.Font(INSPECTION_FONT_PATH, INSPECTION_TITLE_FONT_SIZE)
+        body = pyxel.Font(INSPECTION_FONT_PATH, INSPECTION_FONT_SIZE)
+    except Exception:
+        return InspectionFonts(title=None, body=None)
+    return InspectionFonts(title=title, body=body)
 
 
 def panel_rect() -> ScreenRect:
@@ -342,7 +363,11 @@ def draw_inspection_prompt(pyxel: Any, prompt: PromptSnapshot) -> None:
         pyxel.line(x3, y3, x1, y1, palette.INSPECTION_PROMPT_OUTLINE)
 
 
-def draw_inspection_panel(pyxel: Any, state: InteractionState) -> None:
+def draw_inspection_panel(
+    pyxel: Any,
+    state: InteractionState,
+    fonts: InspectionFonts | None = None,
+) -> None:
     page = current_page(state)
     rect = panel_rect()
     pyxel.rect(rect.x, rect.y, rect.width, rect.height, palette.INSPECTION_PANEL_FILL)
@@ -352,11 +377,13 @@ def draw_inspection_panel(pyxel: Any, state: InteractionState) -> None:
 
     text_x = rect.x + 12
     y = rect.y + 12
-    pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT)
-    y += 18
+    title_font = None if fonts is None else fonts.title
+    body_font = None if fonts is None else fonts.body
+    pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT, title_font)
+    y += _title_line_height(fonts)
     for line in page.lines[:INSPECTION_TEXT_MAX_LINES]:
-        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT)
-        y += 8
+        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT, body_font)
+        y += _body_line_height(fonts)
 
     footer_y = rect.y + rect.height - 18
     pyxel.text(
@@ -364,12 +391,14 @@ def draw_inspection_panel(pyxel: Any, state: InteractionState) -> None:
         footer_y,
         f"{page.page_index + 1} / {page.page_count}",
         palette.INSPECTION_PANEL_MUTED,
+        body_font,
     )
     pyxel.text(
-        rect.x + rect.width - 48,
+        rect.x + rect.width - 66,
         footer_y,
-        "TAP >",
+        "つぎへ",
         palette.INSPECTION_PANEL_TEXT,
+        body_font,
     )
 
 
@@ -381,26 +410,49 @@ def _prepare_page(
 ) -> PreparedInspectionPage:
     return PreparedInspectionPage(
         title=title,
-        lines=tuple(_wrap_ascii_text(text, INSPECTION_TEXT_COLUMNS)),
+        lines=tuple(_wrap_display_text(text, INSPECTION_TEXT_COLUMNS)),
         page_index=page_index,
         page_count=page_count,
     )
 
 
-def _wrap_ascii_text(text: str, columns: int) -> list[str]:
+def _wrap_display_text(text: str, columns: int) -> list[str]:
     lines: list[str] = []
     current = ""
-    for word in text.split():
-        if not current:
-            current = word
-        elif len(current) + 1 + len(word) <= columns:
-            current = f"{current} {word}"
+    for char in text:
+        if char == "\n":
+            if current:
+                lines.append(current)
+                current = ""
+            continue
+        next_text = f"{current}{char}"
+        if not current or _display_width(next_text) <= columns:
+            current = next_text
+        elif char in NO_LINE_START:
+            current = next_text
+            lines.append(current)
+            current = ""
         else:
             lines.append(current)
-            current = word
+            current = char
     if current:
         lines.append(current)
     return lines
+
+
+def _display_width(text: str) -> int:
+    width = 0
+    for char in text:
+        width += 1 if ord(char) < 128 else 2
+    return width
+
+
+def _title_line_height(fonts: InspectionFonts | None) -> int:
+    return INSPECTION_TITLE_LINE_HEIGHT if fonts is not None and fonts.title is not None else 18
+
+
+def _body_line_height(fonts: InspectionFonts | None) -> int:
+    return INSPECTION_TEXT_LINE_HEIGHT if fonts is not None and fonts.body is not None else 8
 
 
 def _inside_viewport(x: float, y: float) -> bool:
