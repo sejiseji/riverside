@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from three_line_explorer import palette
 from three_line_explorer.config import (
-    INSPECTION_FONT_PATH,
+    INSPECTION_BODY_FONT_SIZE,
     INSPECTION_PANEL_H,
+    INSPECTION_PANEL_PADDING_TOP,
+    INSPECTION_PANEL_PADDING_X,
     INSPECTION_PANEL_W,
     INSPECTION_PANEL_X,
     INSPECTION_PANEL_Y,
@@ -15,10 +16,7 @@ from three_line_explorer.config import (
     INSPECTION_PROMPT_HEIGHT,
     INSPECTION_PROMPT_HIT_H,
     INSPECTION_PROMPT_HIT_W,
-    INSPECTION_TEXT_COLUMNS,
     INSPECTION_TEXT_LINE_HEIGHT,
-    INSPECTION_TEXT_MAX_LINES,
-    INSPECTION_TEXT_MAX_WIDTH,
     INSPECTION_TITLE_LINE_HEIGHT,
     VIEWPORT_H,
     VIEWPORT_W,
@@ -28,11 +26,16 @@ from three_line_explorer.config import (
 from three_line_explorer.geometry import Face, make_aabb_faces
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.projection import project_world_point
+from three_line_explorer.text_layout import (
+    InspectionTextLayoutCache,
+    PreparedInspectionPage,
+    PreparedInspectionText,
+    estimate_text_width,
+)
+from three_line_explorer.ui_fonts import UIFontSet
 
 
 PROMPT_BOB_Y = (0, 0, -1, -1, -2, -2, -1, -1)
-NO_LINE_START = frozenset("、。！？）」』】〕〉》")
-_font_load_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,20 +50,6 @@ class ScreenRect:
             self.x <= point_x < self.x + self.width
             and self.y <= point_y < self.y + self.height
         )
-
-
-@dataclass(frozen=True, slots=True)
-class InspectionText:
-    title: str
-    pages: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class PreparedInspectionPage:
-    title: str
-    lines: tuple[str, ...]
-    page_index: int
-    page_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,63 +98,7 @@ class InteractionState:
     page_index: int = 0
     panel_open: bool = False
     inspected_ids: set[str] = field(default_factory=set)
-    prepared_pages: tuple[PreparedInspectionPage, ...] = ()
-
-
-INSPECTION_TEXTS: dict[str, InspectionText] = {
-    "single_sandal": InspectionText(
-        title="片方だけのサンダル",
-        pages=(
-            "水を吸って、すっかり重くなっている。片方だけが川辺に残されていた。",
-            "靴底には名前らしき文字が残っている。けれど半分は削れて読めない。",
-        ),
-    ),
-    "clouded_bottle": InspectionText(
-        title="くもった小瓶",
-        pages=(
-            "中には水が少し入っている。蓋は固く閉じられていて、開きそうにない。",
-            "長いあいだ流されていたのか、ガラスは白くくもっている。",
-        ),
-    ),
-    "folded_note": InspectionText(
-        title="折りたたまれたメモ",
-        pages=(
-            "紙は濡れているが、黒い線がいくつか透けて見える。",
-            "ただのごみというより、誰かが大事に持っていたものに見える。",
-        ),
-    ),
-}
-
-
-def load_inspection_font(pyxel: Any) -> Any | None:
-    global _font_load_error
-    errors: list[str] = []
-    for path in _font_path_candidates():
-        try:
-            font = pyxel.Font(path)
-        except Exception as exc:
-            errors.append(f"{path}: {type(exc).__name__}")
-            continue
-        _font_load_error = None
-        return font
-    _font_load_error = " / ".join(errors[:3])
-    return None
-
-
-def _font_path_candidates() -> tuple[str, ...]:
-    candidates: list[str] = [
-        INSPECTION_FONT_PATH,
-        f"riverside/{INSPECTION_FONT_PATH}",
-    ]
-    module_dir = Path(__file__).resolve().parent
-    candidates.extend(
-        str(path)
-        for path in (
-            module_dir.parent / INSPECTION_FONT_PATH,
-            module_dir.parent.parent / INSPECTION_FONT_PATH,
-        )
-    )
-    return tuple(dict.fromkeys(candidates))
+    prepared_text: PreparedInspectionText | None = None
 
 
 def panel_rect() -> ScreenRect:
@@ -306,13 +239,10 @@ def prompt_snapshot_for_prop(
 def open_inspection(
     state: InteractionState,
     prop: InspectableProp,
-    texts: dict[str, InspectionText] | None = None,
-    font: Any | None = None,
+    text_cache: InspectionTextLayoutCache,
 ) -> bool:
-    if texts is None:
-        texts = INSPECTION_TEXTS
-    text = texts.get(prop.text_key)
-    if text is None:
+    prepared_text = text_cache.get(prop.text_key)
+    if prepared_text is None:
         return False
 
     state.panel_open = True
@@ -320,17 +250,17 @@ def open_inspection(
     state.opened_text_key = prop.text_key
     state.page_index = 0
     state.inspected_ids.add(prop.object_id)
-    state.prepared_pages = tuple(
-        _prepare_page(text.title, page, index, len(text.pages), font=font)
-        for index, page in enumerate(text.pages)
-    )
+    state.prepared_text = prepared_text
     return True
 
 
 def advance_or_close_inspection(state: InteractionState) -> None:
     if not state.panel_open:
         return
-    if state.page_index + 1 < len(state.prepared_pages):
+    if (
+        state.prepared_text is not None
+        and state.page_index + 1 < len(state.prepared_text.pages)
+    ):
         state.page_index += 1
         return
     close_inspection(state)
@@ -341,15 +271,15 @@ def close_inspection(state: InteractionState) -> None:
     state.opened_target_id = None
     state.opened_text_key = None
     state.page_index = 0
-    state.prepared_pages = ()
+    state.prepared_text = None
 
 
 def current_page(state: InteractionState) -> PreparedInspectionPage | None:
-    if not state.panel_open or not state.prepared_pages:
+    if not state.panel_open or state.prepared_text is None:
         return None
-    if state.page_index < 0 or state.page_index >= len(state.prepared_pages):
+    if state.page_index < 0 or state.page_index >= len(state.prepared_text.pages):
         return None
-    return state.prepared_pages[state.page_index]
+    return state.prepared_text.pages[state.page_index]
 
 
 def can_open_prop(player_bounds: AABB, prop: InspectableProp) -> bool:
@@ -384,139 +314,61 @@ def draw_inspection_prompt(pyxel: Any, prompt: PromptSnapshot) -> None:
 def draw_inspection_panel(
     pyxel: Any,
     state: InteractionState,
-    font: Any | None = None,
+    fonts: UIFontSet,
 ) -> None:
     page = current_page(state)
     rect = panel_rect()
+    pyxel.rect(
+        rect.x + 2,
+        rect.y + 2,
+        rect.width,
+        rect.height,
+        palette.INSPECTION_PANEL_SHADOW,
+    )
     pyxel.rect(rect.x, rect.y, rect.width, rect.height, palette.INSPECTION_PANEL_FILL)
     pyxel.rectb(rect.x, rect.y, rect.width, rect.height, palette.INSPECTION_PANEL_BORDER)
-    if page is None:
+    if page is None or state.prepared_text is None:
         return
 
-    text_x = rect.x + 12
-    y = rect.y + 12
-    if font is None:
-        pyxel.text(text_x, y, "FONT LOAD ERROR", palette.INSPECTION_PANEL_TEXT)
-        error = _font_load_error or INSPECTION_FONT_PATH
-        for index, line in enumerate(_wrap_ascii_text(error, 44)[:4]):
-            pyxel.text(text_x, y + 10 + index * 10, line, palette.INSPECTION_PANEL_TEXT)
-        return
-
-    pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT, font)
-    y += INSPECTION_TITLE_LINE_HEIGHT
-    for line in page.lines[:INSPECTION_TEXT_MAX_LINES]:
-        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT, font)
-        y += INSPECTION_TEXT_LINE_HEIGHT
-
-    footer_y = rect.y + rect.height - 18
+    text_x = rect.x + INSPECTION_PANEL_PADDING_X
+    title_y = rect.y + INSPECTION_PANEL_PADDING_TOP
+    pyxel.text(
+        text_x + 1,
+        title_y + 1,
+        state.prepared_text.title,
+        palette.INSPECTION_PANEL_TITLE_SHADOW,
+        fonts.title,
+    )
     pyxel.text(
         text_x,
-        footer_y,
-        f"{page.page_index + 1} / {page.page_count}",
-        palette.INSPECTION_PANEL_MUTED,
-        font,
+        title_y,
+        state.prepared_text.title,
+        palette.INSPECTION_PANEL_TITLE,
+        fonts.title,
     )
+
+    y = title_y + INSPECTION_TITLE_LINE_HEIGHT + 12
+    for line in page.lines:
+        pyxel.text(text_x, y, line, palette.INSPECTION_PANEL_TEXT, fonts.body)
+        y += INSPECTION_TEXT_LINE_HEIGHT
+
+    footer = f"{state.page_index + 1} / {len(state.prepared_text.pages)}  ▶"
+    footer_width = _font_text_width(fonts.body, footer, INSPECTION_BODY_FONT_SIZE)
+    footer_y = rect.y + rect.height - 28
     pyxel.text(
-        rect.x + rect.width - 66,
+        rect.x + rect.width - INSPECTION_PANEL_PADDING_X - footer_width,
         footer_y,
-        "つぎへ",
-        palette.INSPECTION_PANEL_TEXT,
-        font,
+        footer,
+        palette.INSPECTION_PANEL_MUTED,
+        fonts.body,
     )
 
 
-def _prepare_page(
-    title: str,
-    text: str,
-    page_index: int,
-    page_count: int,
-    *,
-    font: Any | None = None,
-) -> PreparedInspectionPage:
-    return PreparedInspectionPage(
-        title=title,
-        lines=tuple(
-            _wrap_display_text(
-                text,
-                INSPECTION_TEXT_COLUMNS,
-                font=font,
-                max_width_px=INSPECTION_TEXT_MAX_WIDTH,
-            )
-        ),
-        page_index=page_index,
-        page_count=page_count,
-    )
-
-
-def _wrap_display_text(
-    text: str,
-    columns: int,
-    *,
-    font: Any | None = None,
-    max_width_px: int | None = None,
-) -> list[str]:
-    if font is not None and max_width_px is not None and hasattr(font, "text_width"):
-        return _wrap_by_font_width(text, font, max_width_px)
-    return _wrap_by_display_columns(text, columns)
-
-
-def _wrap_by_font_width(text: str, font: Any, max_width_px: int) -> list[str]:
-    lines: list[str] = []
-    current = ""
-    for char in text:
-        if char == "\n":
-            if current:
-                lines.append(current)
-            current = ""
-            continue
-        next_text = f"{current}{char}"
-        if not current or font.text_width(next_text) <= max_width_px:
-            current = next_text
-        elif char in NO_LINE_START:
-            current = next_text
-            lines.append(current)
-            current = ""
-        else:
-            lines.append(current)
-            current = char
-    if current:
-        lines.append(current)
-    return lines
-
-
-def _wrap_ascii_text(text: str, columns: int) -> list[str]:
-    return [text[index : index + columns] for index in range(0, len(text), columns)]
-
-
-def _wrap_by_display_columns(text: str, columns: int) -> list[str]:
-    lines: list[str] = []
-    current = ""
-    for char in text:
-        if char == "\n":
-            if current:
-                lines.append(current)
-                current = ""
-            continue
-        next_text = f"{current}{char}"
-        if not current or _display_width(next_text) <= columns:
-            current = next_text
-        elif char in NO_LINE_START:
-            current = next_text
-            lines.append(current)
-            current = ""
-        else:
-            lines.append(current)
-            current = char
-    if current:
-        lines.append(current)
-    return lines
-
-
-def _display_width(text: str) -> int:
-    width = 0
-    for char in text:
-        width += 1 if ord(char) < 128 else 2
-    return width
+def _font_text_width(font: object, text: str, font_size: int) -> int:
+    text_width = getattr(font, "text_width", None)
+    if callable(text_width):
+        return int(text_width(text))
+    return estimate_text_width(text, font_size)
 
 
 def _inside_viewport(x: float, y: float) -> bool:

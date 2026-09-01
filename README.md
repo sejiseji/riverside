@@ -26,7 +26,8 @@ Prototype controls:
 - Inspection: when a nearby riverside prop is active, tap the yellow marker to open its panel.
   While the panel is open, movement and manual camera input are suppressed; tap the panel or
   press `Z`, `Enter`, or `Space` to advance and close it.
-  The panel uses a bundled Japanese BDF font.
+  The panel uses bundled DotGothic16 Japanese TTF fonts at 18 px for titles and
+  16 px for body text.
 
 Player sprites:
 
@@ -42,13 +43,17 @@ embedded sprite data in `src/three_line_explorer/player_sprite_data.py`.
 Japanese font:
 
 ```text
-assets/fonts/umplus_j12r.bdf
+assets/fonts/DotGothic16-Regular.ttf
+assets/fonts/DotGothic16-OFL.txt
 ```
 
 This prototype follows the Pyxel custom font sample: create `pyxel.Font(...)`
 after `pyxel.init(...)`, pass the font to `pyxel.text(...)`, and use
-`font.text_width(...)` for text measurement. Verify and document the upstream
-font license before treating it as a production asset.
+`font.text_width(...)` for text measurement. Inspection text layout uses the
+measured width first, and falls back to a conservative Japanese width estimate
+only if a font implementation does not expose `text_width`.
+
+Third-party font notices are listed in `THIRD_PARTY_NOTICES.md`.
 
 GitHub Pages publishing:
 

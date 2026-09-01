@@ -3,9 +3,16 @@ from __future__ import annotations
 from unittest import TestCase
 
 from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
-from three_line_explorer.config import CameraShotId, INSPECTION_FONT_PATH, LANE_Z, RIVER_START_Z
+from three_line_explorer.config import (
+    CameraShotId,
+    INSPECTION_BODY_FONT_SIZE,
+    INSPECTION_FONT_PATH,
+    INSPECTION_TEXT_MAX_LINES,
+    INSPECTION_TEXT_MAX_WIDTH,
+    LANE_Z,
+    RIVER_START_Z,
+)
 from three_line_explorer.inspection import (
-    INSPECTION_TEXTS,
     InspectableProp,
     InteractionState,
     advance_or_close_inspection,
@@ -14,14 +21,19 @@ from three_line_explorer.inspection import (
     open_inspection,
     prompt_snapshot_for_prop,
     update_active_target,
-    _display_width,
-    _font_path_candidates,
-    _wrap_display_text,
-    load_inspection_font,
 )
+from three_line_explorer.inspection_texts import INSPECTION_TEXTS, InspectionText
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import player_bounds_at
 from three_line_explorer.stage import Stage
+from three_line_explorer.text_layout import (
+    InspectionTextLayoutCache,
+    create_text_measure,
+    estimate_text_width,
+    prepare_inspection_text,
+    wrap_japanese_text,
+)
+from three_line_explorer.ui_fonts import asset_path_candidates, load_ui_fonts
 from three_line_explorer.visible_volume import update_visible_volume
 
 
@@ -116,14 +128,15 @@ class InspectionTests(TestCase):
     def test_panel_opens_advances_and_closes(self) -> None:
         prop = Stage.create_prototype().inspectable_props[0]
         state = InteractionState()
+        text_cache = make_text_cache()
 
-        self.assertTrue(open_inspection(state, prop, INSPECTION_TEXTS))
+        self.assertTrue(open_inspection(state, prop, text_cache))
         self.assertTrue(state.panel_open)
         self.assertIn(prop.object_id, state.inspected_ids)
         page = current_page(state)
         self.assertIsNotNone(page)
         assert page is not None
-        self.assertEqual(page.title, "片方だけのサンダル")
+        self.assertEqual(state.prepared_text.title, "片方だけのサンダル")
 
         advance_or_close_inspection(state)
         self.assertTrue(state.panel_open)
@@ -132,30 +145,87 @@ class InspectionTests(TestCase):
         advance_or_close_inspection(state)
         self.assertFalse(state.panel_open)
 
-    def test_japanese_wrap_uses_wide_character_columns(self) -> None:
-        lines = _wrap_display_text(
+    def test_japanese_wrap_uses_font_measure(self) -> None:
+        measure = create_text_measure(FakeFont(width_per_char=12), 16)
+
+        lines = wrap_japanese_text(
             "水を吸って、すっかり重くなっている。",
-            12,
+            72,
+            measure,
         )
 
         self.assertGreater(len(lines), 1)
-        self.assertTrue(all(_display_width(line) <= 14 for line in lines))
+        self.assertTrue(all(measure(line) <= 84 for line in lines))
 
-    def test_wrap_uses_font_text_width_when_available(self) -> None:
+    def test_text_measure_uses_font_text_width_when_available(self) -> None:
         font = FakeFont(width_per_char=12)
 
-        lines = _wrap_display_text(
-            "水を吸って、すっかり重くなっている。",
-            100,
-            font=font,
-            max_width_px=72,
+        measure = create_text_measure(font, 16)
+
+        self.assertEqual(measure("abc"), 36)
+
+    def test_text_measure_estimates_width_without_font_text_width(self) -> None:
+        measure = create_text_measure(object(), 16)
+
+        self.assertEqual(measure("abc"), 24)
+        self.assertEqual(measure("川辺"), 32)
+
+    def test_wrap_keeps_no_line_start_marks_off_line_head(self) -> None:
+        measure = create_text_measure(FakeFont(width_per_char=10), 16)
+
+        lines = wrap_japanese_text("あああ。いい", 30, measure)
+
+        self.assertEqual(lines[0], "ああ")
+        self.assertTrue(lines[1].startswith("あ。"))
+
+    def test_wrap_keeps_no_line_end_marks_off_line_tail(self) -> None:
+        measure = create_text_measure(FakeFont(width_per_char=10), 16)
+
+        lines = wrap_japanese_text("ああ「いい", 30, measure)
+
+        self.assertEqual(lines[0], "ああ")
+        self.assertTrue(lines[1].startswith("「い"))
+
+    def test_prepare_splits_pages_after_max_lines(self) -> None:
+        source = InspectionText(
+            "長い文章",
+            ("あ\nい\nう\nえ\nお\nか\nき",),
         )
 
-        self.assertGreater(len(lines), 1)
-        self.assertTrue(all(font.text_width(line) <= 84 for line in lines))
+        prepared = prepare_inspection_text(
+            source,
+            max_width=999,
+            max_lines=INSPECTION_TEXT_MAX_LINES,
+            measure=lambda text: len(text),
+        )
+
+        self.assertEqual(len(prepared.pages), 2)
+        self.assertEqual(len(prepared.pages[0].lines), INSPECTION_TEXT_MAX_LINES)
+        self.assertEqual(prepared.pages[1].lines, ("き",))
+
+    def test_text_layout_cache_reuses_prepared_text(self) -> None:
+        counter = CountingMeasure()
+        cache = InspectionTextLayoutCache(
+            {"sample": InspectionText("見出し", ("川辺のメモ",))},
+            max_width=INSPECTION_TEXT_MAX_WIDTH,
+            max_lines=INSPECTION_TEXT_MAX_LINES,
+            measure=counter,
+        )
+
+        first = cache.get("sample")
+        calls_after_first = counter.calls
+        second = cache.get("sample")
+
+        self.assertIs(first, second)
+        self.assertEqual(counter.calls, calls_after_first)
+
+    def test_text_layout_cache_returns_none_for_missing_key(self) -> None:
+        cache = make_text_cache()
+
+        self.assertIsNone(cache.get("missing_text_key"))
 
     def test_font_candidates_include_pyxapp_package_path(self) -> None:
-        candidates = _font_path_candidates()
+        candidates = asset_path_candidates(INSPECTION_FONT_PATH)
 
         self.assertEqual(candidates[0], INSPECTION_FONT_PATH)
         self.assertIn(f"riverside/{INSPECTION_FONT_PATH}", candidates)
@@ -164,11 +234,12 @@ class InspectionTests(TestCase):
         success_path = f"riverside/{INSPECTION_FONT_PATH}"
         pyxel = FakePyxelFontLoader(success_path)
 
-        font = load_inspection_font(pyxel)
+        fonts = load_ui_fonts(pyxel)
 
-        self.assertEqual(font, "font")
-        self.assertIn(INSPECTION_FONT_PATH, pyxel.paths)
-        self.assertIn(success_path, pyxel.paths)
+        self.assertEqual(fonts.title, ("font", success_path, 18))
+        self.assertEqual(fonts.body, ("font", success_path, 16))
+        self.assertIn((INSPECTION_FONT_PATH, 18), pyxel.calls)
+        self.assertIn((success_path, 18), pyxel.calls)
 
 
 class FakeFont:
@@ -179,13 +250,31 @@ class FakeFont:
         return len(text) * self.width_per_char
 
 
+class CountingMeasure:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self, text: str) -> int:
+        self.calls += 1
+        return estimate_text_width(text, INSPECTION_BODY_FONT_SIZE)
+
+
 class FakePyxelFontLoader:
     def __init__(self, success_path: str) -> None:
         self.success_path = success_path
-        self.paths: list[str] = []
+        self.calls: list[tuple[str, int]] = []
 
-    def Font(self, path: str) -> str:
-        self.paths.append(path)
+    def Font(self, path: str, size: int) -> tuple[str, str, int]:
+        self.calls.append((path, size))
         if path == self.success_path:
-            return "font"
+            return ("font", path, size)
         raise FileNotFoundError(path)
+
+
+def make_text_cache() -> InspectionTextLayoutCache:
+    return InspectionTextLayoutCache(
+        INSPECTION_TEXTS,
+        INSPECTION_TEXT_MAX_WIDTH,
+        INSPECTION_TEXT_MAX_LINES,
+        create_text_measure(FakeFont(width_per_char=12), INSPECTION_BODY_FONT_SIZE),
+    )

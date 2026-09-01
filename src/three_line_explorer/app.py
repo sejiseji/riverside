@@ -15,7 +15,15 @@ from three_line_explorer.camera import (
     update_stable_move_orientation,
 )
 from three_line_explorer.camera_director import CameraDirector
-from three_line_explorer.config import DT, FPS, SCREEN_H, SCREEN_W
+from three_line_explorer.config import (
+    DT,
+    FPS,
+    INSPECTION_BODY_FONT_SIZE,
+    INSPECTION_TEXT_MAX_LINES,
+    INSPECTION_TEXT_MAX_WIDTH,
+    SCREEN_H,
+    SCREEN_W,
+)
 from three_line_explorer.debug_hud import draw_debug_hud, draw_ui
 from three_line_explorer.input import InputAdapter, StickBasis
 from three_line_explorer.inspection import (
@@ -26,12 +34,12 @@ from three_line_explorer.inspection import (
     draw_inspection_panel,
     draw_inspection_prompt,
     find_prop_by_id,
-    load_inspection_font,
     open_inspection,
     panel_rect,
     prompt_snapshot_for_prop,
     update_active_target,
 )
+from three_line_explorer.inspection_texts import INSPECTION_TEXTS
 from three_line_explorer.player import (
     PlayerState,
     create_player,
@@ -44,6 +52,8 @@ from three_line_explorer.player import (
 )
 from three_line_explorer.renderer import RenderStats, Renderer
 from three_line_explorer.stage import CameraRule, Stage
+from three_line_explorer.text_layout import InspectionTextLayoutCache, create_text_measure
+from three_line_explorer.ui_fonts import load_ui_fonts
 from three_line_explorer.visible_volume import VisibleVolumeState, update_visible_volume
 
 
@@ -82,7 +92,13 @@ class App:
         self.show_volume = False
         self.show_lanes = False
         self.interaction = InteractionState()
-        self.inspection_font = load_inspection_font(pyxel)
+        self.ui_fonts = load_ui_fonts(pyxel)
+        self.inspection_text_cache = InspectionTextLayoutCache(
+            INSPECTION_TEXTS,
+            INSPECTION_TEXT_MAX_WIDTH,
+            INSPECTION_TEXT_MAX_LINES,
+            create_text_measure(self.ui_fonts.body, INSPECTION_BODY_FONT_SIZE),
+        )
         self.last_stats = RenderStats()
         self.last_rendered_camera_snapshot = self._initial_snapshot()
         self.last_rendered_prompt: PromptSnapshot | None = None
@@ -211,7 +227,7 @@ class App:
             return
         if not can_open_prop(player_bounds_at(self.player.x, self.player.z), prop):
             return
-        open_inspection(self.interaction, prop, font=self.inspection_font)
+        open_inspection(self.interaction, prop, self.inspection_text_cache)
 
     def draw(self) -> None:
         pyxel = self.pyxel
@@ -274,7 +290,7 @@ class App:
             bottom_controls_visible=not self.interaction.panel_open,
         )
         if self.interaction.panel_open:
-            draw_inspection_panel(pyxel, self.interaction, self.inspection_font)
+            draw_inspection_panel(pyxel, self.interaction, self.ui_fonts)
         if self.debug_visible:
             draw_debug_hud(
                 pyxel,

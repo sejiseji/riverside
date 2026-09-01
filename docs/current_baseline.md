@@ -109,6 +109,11 @@ Pointer:
 
 ## Inspection
 
+- Main modules:
+  - `inspection.py`: target selection, panel state, prompt/panel drawing
+  - `inspection_texts.py`: Japanese inspection copy
+  - `text_layout.py`: measured wrapping, kinsoku handling, page splitting, cache
+  - `ui_fonts.py`: bundled font loading
 - Data type: `InspectableProp`
 - Collection: `Stage.inspectable_props`
 - Collision: none
@@ -120,19 +125,22 @@ Pointer:
 - Marker anchor: prop top center plus `marker_height`
 - Marker draw: fixed 2D triangle after projecting the 3D anchor
 - Marker hitbox: 40x40 px
-- Panel rect: x=12, y=626, w=369, h=210
+- Panel rect: x=12, y=620, w=369, h=216
 - Panel behavior: movement and manual camera requests stop while open
 - Existing camera transitions continue while the panel is open
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
 - Current text is Japanese prototype copy.
-- Font path: `assets/fonts/umplus_j12r.bdf`
-- Active font target: 12 px BDF
+- Font path: `assets/fonts/DotGothic16-Regular.ttf`
+- Font license text: `assets/fonts/DotGothic16-OFL.txt`
+- Active font target: DotGothic16 TTF, title 18 px, body 16 px
 - Font usage follows the Pyxel custom font sample: create `pyxel.Font(...)`
   after `pyxel.init(...)`, pass it to `pyxel.text(...)`, and use
   `font.text_width(...)` for measurement.
-- The bundled font is a Pyxel example asset; verify and document the upstream
-  license before treating it as production-ready.
+- Text layout uses `Font.text_width` first and falls back to a conservative
+  Japanese width estimate only when `text_width` is unavailable.
+- The layout cache is built per inspection text key, so wrapping is not
+  recalculated every frame.
 
 ## Assets
 
@@ -141,7 +149,8 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
-- Japanese panel font: `assets/fonts/umplus_j12r.bdf`
+- Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`
+- Font third-party notice: `THIRD_PARTY_NOTICES.md`
 
 ## Web Publishing
 
