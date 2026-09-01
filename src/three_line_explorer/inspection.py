@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from three_line_explorer import palette
@@ -31,6 +32,7 @@ from three_line_explorer.projection import project_world_point
 
 PROMPT_BOB_Y = (0, 0, -1, -1, -2, -2, -1, -1)
 NO_LINE_START = frozenset("、。！？）」』】〕〉》")
+_font_load_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,10 +138,34 @@ INSPECTION_TEXTS: dict[str, InspectionText] = {
 
 
 def load_inspection_font(pyxel: Any) -> Any | None:
-    try:
-        return pyxel.Font(INSPECTION_FONT_PATH)
-    except Exception:
-        return None
+    global _font_load_error
+    errors: list[str] = []
+    for path in _font_path_candidates():
+        try:
+            font = pyxel.Font(path)
+        except Exception as exc:
+            errors.append(f"{path}: {type(exc).__name__}")
+            continue
+        _font_load_error = None
+        return font
+    _font_load_error = " / ".join(errors[:3])
+    return None
+
+
+def _font_path_candidates() -> tuple[str, ...]:
+    candidates: list[str] = [
+        INSPECTION_FONT_PATH,
+        f"riverside/{INSPECTION_FONT_PATH}",
+    ]
+    module_dir = Path(__file__).resolve().parent
+    candidates.extend(
+        str(path)
+        for path in (
+            module_dir.parent / INSPECTION_FONT_PATH,
+            module_dir.parent.parent / INSPECTION_FONT_PATH,
+        )
+    )
+    return tuple(dict.fromkeys(candidates))
 
 
 def panel_rect() -> ScreenRect:
@@ -370,8 +396,10 @@ def draw_inspection_panel(
     text_x = rect.x + 12
     y = rect.y + 12
     if font is None:
-        pyxel.text(text_x, y, f"FONT LOAD ERROR: {INSPECTION_FONT_PATH}", palette.INSPECTION_PANEL_TEXT)
-        pyxel.text(text_x, y + 10, "Japanese text needs pyxel.Font(...).", palette.INSPECTION_PANEL_TEXT)
+        pyxel.text(text_x, y, "FONT LOAD ERROR", palette.INSPECTION_PANEL_TEXT)
+        error = _font_load_error or INSPECTION_FONT_PATH
+        for index, line in enumerate(_wrap_ascii_text(error, 44)[:4]):
+            pyxel.text(text_x, y + 10 + index * 10, line, palette.INSPECTION_PANEL_TEXT)
         return
 
     pyxel.text(text_x, y, page.title, palette.INSPECTION_PANEL_TEXT, font)
@@ -454,6 +482,10 @@ def _wrap_by_font_width(text: str, font: Any, max_width_px: int) -> list[str]:
     if current:
         lines.append(current)
     return lines
+
+
+def _wrap_ascii_text(text: str, columns: int) -> list[str]:
+    return [text[index : index + columns] for index in range(0, len(text), columns)]
 
 
 def _wrap_by_display_columns(text: str, columns: int) -> list[str]:

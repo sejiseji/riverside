@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest import TestCase
 
 from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
-from three_line_explorer.config import CameraShotId, LANE_Z, RIVER_START_Z
+from three_line_explorer.config import CameraShotId, INSPECTION_FONT_PATH, LANE_Z, RIVER_START_Z
 from three_line_explorer.inspection import (
     INSPECTION_TEXTS,
     InspectableProp,
@@ -15,7 +15,9 @@ from three_line_explorer.inspection import (
     prompt_snapshot_for_prop,
     update_active_target,
     _display_width,
+    _font_path_candidates,
     _wrap_display_text,
+    load_inspection_font,
 )
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import player_bounds_at
@@ -152,6 +154,22 @@ class InspectionTests(TestCase):
         self.assertGreater(len(lines), 1)
         self.assertTrue(all(font.text_width(line) <= 84 for line in lines))
 
+    def test_font_candidates_include_pyxapp_package_path(self) -> None:
+        candidates = _font_path_candidates()
+
+        self.assertEqual(candidates[0], INSPECTION_FONT_PATH)
+        self.assertIn(f"riverside/{INSPECTION_FONT_PATH}", candidates)
+
+    def test_font_loader_tries_pyxapp_package_path(self) -> None:
+        success_path = f"riverside/{INSPECTION_FONT_PATH}"
+        pyxel = FakePyxelFontLoader(success_path)
+
+        font = load_inspection_font(pyxel)
+
+        self.assertEqual(font, "font")
+        self.assertIn(INSPECTION_FONT_PATH, pyxel.paths)
+        self.assertIn(success_path, pyxel.paths)
+
 
 class FakeFont:
     def __init__(self, *, width_per_char: int) -> None:
@@ -159,3 +177,15 @@ class FakeFont:
 
     def text_width(self, text: str) -> int:
         return len(text) * self.width_per_char
+
+
+class FakePyxelFontLoader:
+    def __init__(self, success_path: str) -> None:
+        self.success_path = success_path
+        self.paths: list[str] = []
+
+    def Font(self, path: str) -> str:
+        self.paths.append(path)
+        if path == self.success_path:
+            return "font"
+        raise FileNotFoundError(path)
