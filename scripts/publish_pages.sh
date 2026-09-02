@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBLISH_DIR="$(mktemp -d /tmp/riverside-pages.XXXXXX)"
 APP_DIR="$PUBLISH_DIR/riverside"
 CACHE_BUST_ID="${1:-$(git -C "$ROOT_DIR" rev-parse --short HEAD)}"
+PUBLISHED_APP_NAME="riverside-${CACHE_BUST_ID//[^A-Za-z0-9._-]/-}.pyxapp"
 PYXEL_BIN="$ROOT_DIR/.venv/bin/pyxel"
 if [ ! -x "$PYXEL_BIN" ]; then
   PYXEL_BIN="pyxel"
@@ -35,6 +36,9 @@ rsync -a "$ROOT_DIR/index.html" "$PUBLISH_DIR/"
   cd "$PUBLISH_DIR"
   "$PYXEL_BIN" package riverside riverside/web_bootstrap.py
 )
+cp "$PUBLISH_DIR/riverside.pyxapp" "$PUBLISH_DIR/$PUBLISHED_APP_NAME"
+sed -i.bak "s/name=\"riverside.pyxapp\"/name=\"$PUBLISHED_APP_NAME\"/" "$PUBLISH_DIR/index.html"
+rm "$PUBLISH_DIR/index.html.bak"
 rm -rf "$APP_DIR"
 touch "$PUBLISH_DIR/.nojekyll"
 

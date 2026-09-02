@@ -19,3 +19,11 @@ class WebEntryTests(TestCase):
         self.assertIn("visualViewport", html)
         self.assertIn("100svh", html)
         self.assertNotIn("height: 100dvh", html)
+
+    def test_publish_script_writes_id_specific_pyxapp(self) -> None:
+        script = Path("scripts/publish_pages.sh").read_text(encoding="utf-8")
+
+        self.assertIn("PUBLISHED_APP_NAME=", script)
+        self.assertIn("riverside-${CACHE_BUST_ID", script)
+        self.assertIn("cp \"$PUBLISH_DIR/riverside.pyxapp\"", script)
+        self.assertIn('name=\\"$PUBLISHED_APP_NAME\\"', script)

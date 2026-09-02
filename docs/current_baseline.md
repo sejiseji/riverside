@@ -172,9 +172,12 @@ Pointer:
 - Pages entry point: `index.html`
 - Runtime tag: `pyxel-play`
 - Packaged app: `riverside.pyxapp`
+- Published cache-specific app: `riverside-<commit-or-check-id>.pyxapp`
 - Package command: `pyxel package riverside riverside/web_bootstrap.py`
 - The `.pyxapp` contains `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
 - Raw `.py` source files are not published separately on `gh-pages`.
 - Mobile HTML fits the game to the visible viewport at 393:852 instead of
   stretching it to `100dvh`, with a minimum 40px browser-control guard in
   portrait mode.
+- Local `index.html` uses `riverside.pyxapp`; the publish script rewrites the
+  published copy to the cache-specific app filename.

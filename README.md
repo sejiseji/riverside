@@ -86,13 +86,14 @@ The publish script prints the current commit version:
 https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 ```
 
-The page propagates `v` to the generated `.pyxapp` and local asset loads so
-Pyxel Web does not reuse stale app files.
+The publish script also writes an ID-specific `.pyxapp` filename and points the
+published HTML at it, so Pyxel Web does not reuse stale packaged app files.
 On mobile browsers the canvas is fit to the visible viewport while preserving
 the 393:852 game aspect ratio. The inspection panel also keeps a large logical
 bottom margin so it stays above browser controls in embedded mobile browsers.
 
 The publish script packages the app with `pyxel package` and places only
-`index.html`, `riverside.pyxapp`, and `.nojekyll` at the Pages root. Raw source
-files remain local and on the `main` branch; Pages runs the packaged app with
+`index.html`, `.nojekyll`, `riverside.pyxapp`, and
+`riverside-<commit-or-check-id>.pyxapp` at the Pages root. Raw source files
+remain local and on the `main` branch; Pages runs the packaged app with
 `pyxel-play`.
