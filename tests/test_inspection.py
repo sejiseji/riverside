@@ -259,7 +259,7 @@ class InspectionTests(TestCase):
         self.assertIn((success_path, INSPECTION_TITLE_FONT_SIZE), pyxel.calls)
 
     def test_inspection_panel_keeps_bottom_margin(self) -> None:
-        self.assertLessEqual(INSPECTION_PANEL_Y + INSPECTION_PANEL_H, SCREEN_H - 32)
+        self.assertLessEqual(INSPECTION_PANEL_Y + INSPECTION_PANEL_H, SCREEN_H - 96)
 
 
 class FakeFont:

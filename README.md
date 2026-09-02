@@ -89,8 +89,8 @@ https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 The page propagates `v` to the generated `.pyxapp` and local asset loads so
 Pyxel Web does not reuse stale app files.
 On mobile browsers the canvas is fit to the visible viewport while preserving
-the 393:852 game aspect ratio, so the lower inspection panel stays above the
-browser controls.
+the 393:852 game aspect ratio. The inspection panel also keeps a large logical
+bottom margin so it stays above browser controls in embedded mobile browsers.
 
 The publish script packages the app with `pyxel package` and places only
 `index.html`, `riverside.pyxapp`, and `.nojekyll` at the Pages root. Raw source

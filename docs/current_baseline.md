@@ -143,7 +143,8 @@ Pointer:
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 16 px, body 15 px
-- Inspection panel rectangle: x=12, y=600, w=369, h=220
+- Inspection panel rectangle: x=12, y=536, w=369, h=204
+- Inspection panel bottom guard: 112 logical px
 - Inspection text is drawn once per line without faux-bold shadowing.
 - Font usage follows the Pyxel custom font sample: create `pyxel.Font(...)`
   after `pyxel.init(...)`, pass it to `pyxel.text(...)`, and use
@@ -175,4 +176,5 @@ Pointer:
 - The `.pyxapp` contains `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
 - Raw `.py` source files are not published separately on `gh-pages`.
 - Mobile HTML fits the game to the visible viewport at 393:852 instead of
-  stretching it to `100dvh`.
+  stretching it to `100dvh`, with a minimum 40px browser-control guard in
+  portrait mode.
