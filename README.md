@@ -68,6 +68,13 @@ only if a font implementation does not expose `text_width`.
 
 Third-party font notices are listed in `THIRD_PARTY_NOTICES.md`.
 
+Planning docs:
+
+```text
+docs/current_baseline.md
+docs/roadmap.md
+```
+
 GitHub Pages publishing:
 
 The published site is served from the `gh-pages` branch. To refresh it after changing the app:

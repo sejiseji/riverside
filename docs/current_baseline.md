@@ -1,6 +1,7 @@
 # riverside Current Baseline
 
 This document captures the current implementation baseline for the prototype.
+Future implementation order is tracked in `docs/roadmap.md`.
 
 ## Core Rules
 
@@ -126,7 +127,7 @@ Pointer:
 - Marker anchor: prop top center plus `marker_height`
 - Marker draw: fixed 2D triangle after projecting the 3D anchor
 - Marker hitbox: 40x40 px
-- Panel rect: x=12, y=620, w=369, h=216
+- Panel rect: x=12, y=536, w=369, h=204
 - Panel behavior: movement and manual camera requests stop while open
 - Existing camera transitions continue while the panel is open
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
