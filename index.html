@@ -17,11 +17,29 @@
         overscroll-behavior: none;
       }
 
+      :root {
+        --viewport-height: 100vh;
+        --bottom-guard: 12px;
+      }
+
+      @supports (height: 100svh) {
+        :root {
+          --viewport-height: 100svh;
+        }
+      }
+
+      @supports (padding: max(0px)) {
+        :root {
+          --bottom-guard: max(12px, env(safe-area-inset-bottom));
+        }
+      }
+
       body {
         display: grid;
         place-items: center;
-        min-height: 100dvh;
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+        min-height: var(--viewport-height);
+        height: var(--viewport-height);
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) var(--bottom-guard)
           env(safe-area-inset-left);
         box-sizing: border-box;
       }
@@ -29,8 +47,11 @@
       pyxel-run,
       pyxel-play {
         display: block;
-        width: min(100vw, calc(100dvh * 393 / 852), 430px);
-        height: min(100dvh, calc(100vw * 852 / 393), 100dvh);
+        --available-height: calc(
+          var(--viewport-height) - env(safe-area-inset-top) - var(--bottom-guard)
+        );
+        width: min(100vw, calc(var(--available-height) * 393 / 852), 430px);
+        height: min(var(--available-height), calc(100vw * 852 / 393), 100vh);
         aspect-ratio: 393 / 852;
         touch-action: none;
       }
@@ -43,17 +64,35 @@
       }
 
       @media (orientation: portrait) and (max-width: 500px) {
+        :root {
+          --bottom-guard: max(24px, env(safe-area-inset-bottom));
+        }
+
         body {
-          padding: 0;
+          place-items: start center;
+          padding: 0 0 var(--bottom-guard) 0;
         }
 
         pyxel-run,
         pyxel-play {
-          width: 100vw;
-          height: 100dvh;
+          --available-height: calc(var(--viewport-height) - var(--bottom-guard));
+          width: min(100vw, calc(var(--available-height) * 393 / 852));
+          height: min(var(--available-height), calc(100vw * 852 / 393));
         }
       }
     </style>
+    <script>
+      (() => {
+        const syncViewportHeight = () => {
+          const viewport = window.visualViewport;
+          const height = viewport ? viewport.height : window.innerHeight;
+          document.documentElement.style.setProperty("--viewport-height", `${height}px`);
+        };
+        syncViewportHeight();
+        window.addEventListener("resize", syncViewportHeight);
+        window.visualViewport?.addEventListener("resize", syncViewportHeight);
+      })();
+    </script>
     <script>
       (() => {
         const params = new URLSearchParams(window.location.search);

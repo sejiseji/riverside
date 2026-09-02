@@ -26,8 +26,8 @@ Prototype controls:
 - Inspection: when a nearby riverside prop is active, tap the yellow marker to open its panel.
   While the panel is open, movement and manual camera input are suppressed; tap the panel or
   press `Z`, `Enter`, or `Space` to advance and close it.
-  The panel uses bundled DotGothic16 Japanese TTF fonts at 18 px for titles and
-  16 px for body text.
+  The panel uses bundled DotGothic16 Japanese TTF fonts at 16 px for titles and
+  15 px for body text.
   Small riverside props are source-defined Pyxel color maps, generated into a
   runtime atlas once and rendered through the same sprite depth queue as the
   player.
@@ -88,6 +88,9 @@ https://sejiseji.github.io/riverside/?v=<commit-or-check-id>
 
 The page propagates `v` to the generated `.pyxapp` and local asset loads so
 Pyxel Web does not reuse stale app files.
+On mobile browsers the canvas is fit to the visible viewport while preserving
+the 393:852 game aspect ratio, so the lower inspection panel stays above the
+browser controls.
 
 The publish script packages the app with `pyxel package` and places only
 `index.html`, `riverside.pyxapp`, and `.nojekyll` at the Pages root. Raw source

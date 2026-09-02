@@ -7,10 +7,14 @@ from three_line_explorer.config import (
     CameraShotId,
     INSPECTION_BODY_FONT_SIZE,
     INSPECTION_FONT_PATH,
+    INSPECTION_PANEL_H,
+    INSPECTION_PANEL_Y,
     INSPECTION_TEXT_MAX_LINES,
     INSPECTION_TEXT_MAX_WIDTH,
+    INSPECTION_TITLE_FONT_SIZE,
     LANE_Z,
     RIVER_START_Z,
+    SCREEN_H,
 )
 from three_line_explorer.inspection import (
     InspectableProp,
@@ -249,10 +253,13 @@ class InspectionTests(TestCase):
 
         fonts = load_ui_fonts(pyxel)
 
-        self.assertEqual(fonts.title, ("font", success_path, 18))
-        self.assertEqual(fonts.body, ("font", success_path, 16))
-        self.assertIn((INSPECTION_FONT_PATH, 18), pyxel.calls)
-        self.assertIn((success_path, 18), pyxel.calls)
+        self.assertEqual(fonts.title, ("font", success_path, INSPECTION_TITLE_FONT_SIZE))
+        self.assertEqual(fonts.body, ("font", success_path, INSPECTION_BODY_FONT_SIZE))
+        self.assertIn((INSPECTION_FONT_PATH, INSPECTION_TITLE_FONT_SIZE), pyxel.calls)
+        self.assertIn((success_path, INSPECTION_TITLE_FONT_SIZE), pyxel.calls)
+
+    def test_inspection_panel_keeps_bottom_margin(self) -> None:
+        self.assertLessEqual(INSPECTION_PANEL_Y + INSPECTION_PANEL_H, SCREEN_H - 32)
 
 
 class FakeFont:

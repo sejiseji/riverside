@@ -325,13 +325,6 @@ def draw_inspection_panel(
     text_x = rect.x + INSPECTION_PANEL_PADDING_X
     title_y = rect.y + INSPECTION_PANEL_PADDING_TOP
     pyxel.text(
-        text_x + 1,
-        title_y + 1,
-        state.prepared_text.title,
-        palette.INSPECTION_PANEL_TITLE_SHADOW,
-        fonts.title,
-    )
-    pyxel.text(
         text_x,
         title_y,
         state.prepared_text.title,

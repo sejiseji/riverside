@@ -142,7 +142,9 @@ Pointer:
   line depth, route depth, camera depth, and stable object id
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
-- Active font target: DotGothic16 TTF, title 18 px, body 16 px
+- Active font target: DotGothic16 TTF, title 16 px, body 15 px
+- Inspection panel rectangle: x=12, y=600, w=369, h=220
+- Inspection text is drawn once per line without faux-bold shadowing.
 - Font usage follows the Pyxel custom font sample: create `pyxel.Font(...)`
   after `pyxel.init(...)`, pass it to `pyxel.text(...)`, and use
   `font.text_width(...)` for measurement.
@@ -172,3 +174,5 @@ Pointer:
 - Package command: `pyxel package riverside riverside/web_bootstrap.py`
 - The `.pyxapp` contains `web_bootstrap.py`, `three_line_explorer/`, and `assets/`.
 - Raw `.py` source files are not published separately on `gh-pages`.
+- Mobile HTML fits the game to the visible viewport at 393:852 instead of
+  stretching it to `100dvh`.
