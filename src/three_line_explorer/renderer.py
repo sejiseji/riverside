@@ -58,8 +58,8 @@ from three_line_explorer.parallax import (
 )
 from three_line_explorer.player import PlayerState
 from three_line_explorer.player_sprite import (
-    PLAYER_SPRITE_FRAME_H,
-    PLAYER_SPRITE_FRAME_W,
+    PLAYER_SPRITE_ANCHOR_X,
+    PLAYER_SPRITE_ANCHOR_Y,
     PLAYER_SPRITE_TRANSPARENT_COLOR,
     load_player_sprite_sheet,
     player_sprite_frame,
@@ -310,8 +310,8 @@ class Renderer:
                 v=v,
                 w=w,
                 h=h,
-                anchor_offset_x=PLAYER_SPRITE_FRAME_W * 0.5,
-                anchor_offset_y=PLAYER_SPRITE_FRAME_H,
+                anchor_offset_x=PLAYER_SPRITE_ANCHOR_X,
+                anchor_offset_y=PLAYER_SPRITE_ANCHOR_Y,
                 scale=1.0,
                 colkey=PLAYER_SPRITE_TRANSPARENT_COLOR,
             )

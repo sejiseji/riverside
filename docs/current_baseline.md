@@ -191,6 +191,9 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
+- Sprite draw anchor: X=24, Y=60 inside each 48x64 cell, tuned to place the
+  cat's visible feet on the projected ground/shadow instead of aligning to the
+  full transparent cell bottom.
 - Frame selection: `frame 0` when idle, otherwise `walk_phase` selects the
   4-frame walk sequence.
 - Walk phase source: actual player movement distance divided by

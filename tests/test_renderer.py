@@ -31,6 +31,7 @@ from three_line_explorer.inspection_prop_sprites import (
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import create_player
+from three_line_explorer.player_sprite import PLAYER_SPRITE_ANCHOR_Y
 from three_line_explorer.renderer import (
     Renderer,
     _face_sort_depth,
@@ -145,6 +146,7 @@ class RendererTests(TestCase):
         player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
         self.assertEqual(shadow.layer, RenderLayer.FLOOR_GUIDE)
         self.assertEqual(player_sprite.layer, RenderLayer.SOLID)
+        self.assertEqual(player_sprite.anchor_offset_y, PLAYER_SPRITE_ANCHOR_Y)
         self.assertEqual(shadow.fill_color, palette.PLAYER_SHADOW)
         self.assertEqual(len(shadow.points), PLAYER_SHADOW_SEGMENTS)
 

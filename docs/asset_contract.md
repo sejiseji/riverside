@@ -34,6 +34,10 @@ visible color `8` is unavailable inside those assets. Player sprites use
 Purpose: player character
 Current subject: four-direction walking character
 Storage: assets/player_sprites.pyxres first, embedded fallback second
+
+Runtime draw anchor:
+  x = 24
+  y = 60
 Cell size: 48x64 px
 Grid: 4 columns x 4 rows
 Total cells: 16
@@ -43,6 +47,9 @@ Rows: FRONT, RIGHT, LEFT, BACK
 Transparent color: Pyxel color 2
 Visible color rule: color 2 cannot be used as visible player pixels
 ```
+
+The runtime anchor is slightly above the full 64 px cell bottom so transparent
+bottom padding does not make the character appear to float.
 
 Frame 0 must be usable as a neutral idle pose. The walking loop may include
 frame 0, but individual character tuning can later choose a different sequence.

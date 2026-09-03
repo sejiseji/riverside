@@ -6,6 +6,8 @@ from unittest import TestCase
 import three_line_explorer.player_sprite as player_sprite_module
 from three_line_explorer.player import create_player
 from three_line_explorer.player_sprite import (
+    PLAYER_SPRITE_ANCHOR_X,
+    PLAYER_SPRITE_ANCHOR_Y,
     PLAYER_SPRITE_RESOURCE_PATH,
     SPRITE_ROW_BACK,
     SPRITE_ROW_FRONT,
@@ -72,6 +74,9 @@ class PlayerSpriteTests(TestCase):
                 )
             )
         self.assertIn(format(PLAYER_SPRITE_TRANSPARENT_COLOR, "x"), PLAYER_SPRITE_SHEETS[0][0])
+        self.assertEqual(PLAYER_SPRITE_ANCHOR_X, PLAYER_SPRITE_FRAME_W * 0.5)
+        self.assertEqual(PLAYER_SPRITE_ANCHOR_Y, 60.0)
+        self.assertLess(PLAYER_SPRITE_ANCHOR_Y, PLAYER_SPRITE_FRAME_H)
 
     def test_render_yaw_selects_cardinal_sprite_rows(self) -> None:
         self.assertEqual(player_sprite_row(0.0), SPRITE_ROW_RIGHT)
