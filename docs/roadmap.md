@@ -138,6 +138,8 @@ RIV014.5B:
 - Draw FAR, MID, and NEAR layers inside the 3D viewport clip.
 - Project repeated tiles from the far visible-volume Z edge so the background
   rises from the stage edge instead of sitting as a fixed screen-space band.
+- Extend the floor, river, and world render candidates with a render-only scene
+  margin so stage edges and object pop-in occur off-screen where possible.
 - Use camera basis for scroll direction so A/B/C and camera transitions remain
   continuous.
 - Add a debug toggle for background visibility.
@@ -159,6 +161,9 @@ RIV014.5C:
 - Background images are generated once at startup.
 - Normal drawing stays to roughly 30 `blt` calls or fewer.
 - No blank gaps appear at tile boundaries or stage ends.
+- Floor/river left-right edges and solid visibility changes are pushed outside
+  the viewport by render-only bounds, without expanding gameplay collision or
+  walkable space.
 - A/B/C cameras do not reverse the parallax direction incorrectly.
 - Camera transitions do not cause instant background flips.
 - Horizon follows camera elevation smoothly.

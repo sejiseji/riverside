@@ -22,6 +22,8 @@ from three_line_explorer.config import (
     RenderLayer,
     RIVER_OBJECT_ID,
     RIVER_START_Z,
+    SCENE_RENDER_FAR_MARGIN_Z,
+    SCENE_RENDER_MARGIN_X,
     VISIBLE_VOLUME_OBJECT_ID,
     VIEWPORT_H,
     VIEWPORT_W,
@@ -45,6 +47,7 @@ from three_line_explorer.parallax import (
     ParallaxAtlas,
     build_parallax_atlas,
     draw_parallax_background,
+    farther_z_direction,
 )
 from three_line_explorer.player import PlayerState
 from three_line_explorer.player_sprite import (
@@ -142,6 +145,7 @@ class Renderer:
             self.environment_sprite_atlas = build_environment_sprite_atlas(pyxel)
         if self.parallax_atlas is None:
             self.parallax_atlas = build_parallax_atlas(pyxel)
+        render_bounds = render_scene_bounds(visible_volume.bounds, snapshot)
         stats = self.build_scene(
             stage,
             visible_volume,
@@ -150,6 +154,7 @@ class Renderer:
             frame_count=getattr(pyxel, "frame_count", 0),
             show_volume=show_volume,
             show_lanes=show_lanes,
+            render_bounds=render_bounds,
         )
 
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
@@ -158,7 +163,7 @@ class Renderer:
             self.parallax_atlas,
             snapshot,
             player.x,
-            visible_volume.bounds,
+            render_bounds,
         )
         render_items = [
             (_render_face_sort_key(face), 0, face)
@@ -193,27 +198,30 @@ class Renderer:
         frame_count: int = 0,
         show_volume: bool,
         show_lanes: bool,
+        render_bounds: AABB | None = None,
     ) -> RenderStats:
         self.render_faces.clear()
         self.render_lines.clear()
         self.render_sprites.clear()
         stats = RenderStats()
+        if render_bounds is None:
+            render_bounds = render_scene_bounds(visible_volume.bounds, snapshot)
 
-        self._enqueue_ground_faces(visible_volume.bounds, snapshot, stats)
+        self._enqueue_ground_faces(render_bounds, snapshot, stats)
 
-        candidates = stage.candidate_solids(visible_volume.bounds)
-        inspectable_props = stage.candidate_inspectable_props(visible_volume.bounds)
-        environment_sprites = stage.candidate_environment_sprites(visible_volume.bounds)
+        candidates = stage.candidate_solids(render_bounds)
+        inspectable_props = stage.candidate_inspectable_props(render_bounds)
+        environment_sprites = stage.candidate_environment_sprites(render_bounds)
         stats.candidate_objects = (
             len(candidates)
             + len(inspectable_props)
             + len(environment_sprites)
         )
         for solid in candidates:
-            clipped_bounds = intersect_aabb(solid.bounds, visible_volume.bounds)
+            clipped_bounds = intersect_aabb(solid.bounds, render_bounds)
             if clipped_bounds is None:
                 continue
-            if visible_volume.bounds.contains_aabb(solid.bounds):
+            if render_bounds.contains_aabb(solid.bounds):
                 faces = solid.faces
                 object_sort_center = solid.bounds.center
             else:
@@ -236,15 +244,15 @@ class Renderer:
                 )
 
         for sprite in environment_sprites:
-            self._enqueue_environment_sprite(sprite, visible_volume.bounds, snapshot)
+            self._enqueue_environment_sprite(sprite, render_bounds, snapshot)
 
         for prop in inspectable_props:
-            self._enqueue_inspectable_prop_sprite(prop, visible_volume.bounds, snapshot)
+            self._enqueue_inspectable_prop_sprite(prop, render_bounds, snapshot)
 
         self._enqueue_player_sprite(player, snapshot, frame_count)
 
         if show_lanes:
-            self._enqueue_lane_lines(visible_volume.bounds, snapshot, stats)
+            self._enqueue_lane_lines(render_bounds, snapshot, stats)
         if show_volume:
             self._enqueue_visible_volume_edges(visible_volume.bounds, snapshot, stats)
 
@@ -638,6 +646,28 @@ def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, f
 
 def _object_sort_depths(center: Vec3, snapshot: CameraSnapshot) -> tuple[float, float]:
     return center.z * snapshot.forward.z, center.x * snapshot.forward.x
+
+
+def render_scene_bounds(logical_bounds: AABB, snapshot: CameraSnapshot) -> AABB:
+    min_z = logical_bounds.minimum.z
+    max_z = logical_bounds.maximum.z
+    if farther_z_direction(snapshot) < 0.0:
+        min_z -= SCENE_RENDER_FAR_MARGIN_Z
+    else:
+        max_z += SCENE_RENDER_FAR_MARGIN_Z
+
+    return AABB(
+        Vec3(
+            logical_bounds.minimum.x - SCENE_RENDER_MARGIN_X,
+            logical_bounds.minimum.y,
+            min_z,
+        ),
+        Vec3(
+            logical_bounds.maximum.x + SCENE_RENDER_MARGIN_X,
+            logical_bounds.maximum.y,
+            max_z,
+        ),
+    )
 
 
 def _face_sort_depth(camera_points: tuple[Vec3, ...]) -> float:

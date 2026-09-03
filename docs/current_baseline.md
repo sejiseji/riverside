@@ -12,6 +12,8 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - Camera shots A/B/C are stage-fixed shots, independent of player facing.
 - Camera transitions do not stop normal movement or lane input.
 - Visible volume, collision, and solid rendering are based on AABBs.
+- The logical visible volume remains the gameplay clamp, while the renderer
+  uses an expanded scene AABB for floor, river, scenery, and solid pop-in.
 - Rendering uses a painter-style sort without a Z buffer.
 - Input is interpreted in screen space.
 - Active drags are rebased when the camera input basis changes.
@@ -59,6 +61,9 @@ River:
 - `RIVER_START_Z = LANE_Z[-1] + PLAYER_SIZE_Z * 0.5`
 - Current river start: Z=44
 - River extends to Z=180.
+- The renderer extends floor/river drawing beyond the logical visible volume:
+  X is padded on both sides, and the far camera-side Z edge is padded so the
+  green ground or river continues toward the parallax background.
 - Solids must not extend past `RIVER_START_Z`.
 - Low riverside props may be placed beyond `RIVER_START_Z`; they are not
   collision solids.
@@ -190,9 +195,23 @@ Pointer:
 - Parallax scroll: `player.x * camera_snapshot.right.x` converted to a
   layer-specific world offset
 - Parallax placement: layers stand just beyond the far Z edge of the current
-  visible volume, with A/B using the inland edge and C using the river edge
+  expanded scene render bounds, with A/B using the inland edge and C using the river edge
 - Parallax projection: each tile is a bottom-anchored billboard whose contact
   point is projected through the current camera
+
+## Rendering Bounds
+
+- Logical visible volume: player-following AABB used for gameplay framing and
+  debug bound display.
+- Scene render bounds: logical visible volume expanded by
+  `SCENE_RENDER_MARGIN_X` on both X sides and by `SCENE_RENDER_FAR_MARGIN_Z` on
+  the far camera-side Z edge.
+- Floor, river, solid clipping, prop sprites, environment sprites, lane guides,
+  and parallax placement use the scene render bounds.
+- Debug visible-volume edges still use the logical bounds so the true gameplay
+  window remains inspectable.
+- Player movement, collision, camera zones, and inspection proximity do not use
+  the scene render bounds.
 - Environment pack manifest: `docs/RIV014_5_environment_asset_manifest.md`
 - Shared pixel-map validation: `src/three_line_explorer/pixel_map_source.py`
 - Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`

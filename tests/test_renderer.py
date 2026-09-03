@@ -10,6 +10,8 @@ from three_line_explorer.config import (
     INSPECTABLE_OBJECT_ID_BASE,
     PLAYER_OBJECT_ID,
     RIVER_OBJECT_ID,
+    SCENE_RENDER_FAR_MARGIN_Z,
+    SCENE_RENDER_MARGIN_X,
     CameraShotId,
 )
 from three_line_explorer.environment_sprites import (
@@ -21,13 +23,15 @@ from three_line_explorer.inspection_prop_sprites import (
     SpriteRegion,
     PropSpriteId,
 )
-from three_line_explorer.math3d import Vec3
+from three_line_explorer.geometry import AabbSolid
+from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import create_player
 from three_line_explorer.renderer import (
     Renderer,
     _face_sort_depth,
     _object_sort_depths,
     _render_sprite_sort_key,
+    render_scene_bounds,
 )
 from three_line_explorer.stage import Stage
 from three_line_explorer.visible_volume import update_visible_volume
@@ -65,6 +69,57 @@ class RendererTests(TestCase):
         }
         self.assertEqual(ground_faces[FLOOR_OBJECT_ID], palette.FLOOR_FILL)
         self.assertEqual(ground_faces[RIVER_OBJECT_ID], palette.RIVER_FILL)
+
+    def test_render_scene_bounds_expand_x_and_far_z_from_right_side_camera(self) -> None:
+        logical = update_visible_volume(0.0).bounds
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
+
+        expanded = render_scene_bounds(logical, snapshot)
+
+        self.assertEqual(expanded.minimum.x, logical.minimum.x - SCENE_RENDER_MARGIN_X)
+        self.assertEqual(expanded.maximum.x, logical.maximum.x + SCENE_RENDER_MARGIN_X)
+        self.assertEqual(expanded.minimum.z, logical.minimum.z - SCENE_RENDER_FAR_MARGIN_Z)
+        self.assertEqual(expanded.maximum.z, logical.maximum.z)
+
+    def test_render_scene_bounds_expand_far_z_from_left_side_camera(self) -> None:
+        logical = update_visible_volume(0.0).bounds
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW], 0.0, 0.0)
+
+        expanded = render_scene_bounds(logical, snapshot)
+
+        self.assertEqual(expanded.minimum.x, logical.minimum.x - SCENE_RENDER_MARGIN_X)
+        self.assertEqual(expanded.maximum.x, logical.maximum.x + SCENE_RENDER_MARGIN_X)
+        self.assertEqual(expanded.minimum.z, logical.minimum.z)
+        self.assertEqual(expanded.maximum.z, logical.maximum.z + SCENE_RENDER_FAR_MARGIN_Z)
+
+    def test_render_scene_uses_expanded_bounds_for_solid_candidates(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        logical = update_visible_volume(player.x).bounds
+        solid = AabbSolid(
+            object_id=900,
+            bounds=AABB(
+                Vec3(logical.maximum.x + 24.0, 0.0, -12.0),
+                Vec3(logical.maximum.x + 44.0, 30.0, 4.0),
+            ),
+            side_color=4,
+            top_color=12,
+            outline_color=0,
+        )
+        stage = Stage(solids=(solid,), zones=())
+        stage.rebuild_chunks()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        self.assertIn(900, {face.object_id for face in renderer.render_faces})
 
     def test_inspectable_props_are_rendered_as_sprites_outside_collision_solids(self) -> None:
         renderer = Renderer.create()
