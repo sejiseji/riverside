@@ -1,6 +1,6 @@
 # riverside Roadmap
 
-Current baseline: `2116a06`.
+Current baseline: RIV014.5 environment integration.
 
 This roadmap keeps the prototype focused on the current structure: three
 walkable Z lanes, a visual river on the +Z side, screen-space input, independent
@@ -12,7 +12,7 @@ GitHub Pages `.pyxapp` publishing.
 1. RIV012: Inspection UI stabilization
 2. RIV013: Inspectable prop content expansion
 3. RIV014: Riverside stage composition
-4. RIV014.5: Parallax background foundation
+4. RIV014.5: Parallax background foundation and environment asset integration
 5. RIV015: Player sprite polish
 6. RIV016: Collision strengthening
 7. RIV017: Camera and draw-order polish
@@ -142,6 +142,10 @@ RIV014.5C:
 - Add riverside-appropriate art: haze, low tree line, uneven distant silhouettes,
   and repeated edge cleanup.
 - Keep all layers behind the floor, river, world solids, player, props, and UI.
+- Place the first generated world-sprite set: dead tree trunk, mossy rock,
+  weathered sign, jizo, grass tuft, fern, bracken, butterbur, horsetail, and
+  sapling.
+- Keep world-sprite collision footprints separate from visual sprite bounds.
 
 ### Acceptance
 

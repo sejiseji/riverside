@@ -136,3 +136,44 @@ Tile seam rules:
 - Do not leave unintended empty columns at tile boundaries.
 - Keep left and right edge heights compatible with arbitrary neighboring tiles.
 - Keep tile sequence fixed in stage data; do not use runtime random generation.
+
+## World Environment Sprites
+
+```text
+Purpose: nearby scenery and small obstacles placed on the stage
+Storage: source-defined Pyxel color maps
+Drawing: contact-point billboard sprites in the normal sprite depth queue
+Collision: optional separate X/Z footprint
+Current count: 10
+Runtime transparent_color: Pyxel color 8
+Source transparent char: .
+Allowed transparent source chars: .012345679abcdef
+```
+
+Current generated set:
+
+```text
+Collidable: dead_tree_trunk, mossy_rock, weathered_sign, jizo
+Inspectable: weathered_sign
+Non-collidable: grass_tuft, fern, bracken, butterbur, horsetail, sapling
+```
+
+Required metadata:
+
+```python
+WorldSpriteSpec(
+    source=PixelMapSpec(...),
+    kind=...,
+    anchor_x=...,
+    anchor_y=...,
+    world_width=...,
+    collision_half_x=...,
+    collision_half_z=...,
+    inspectable_text_key=...,
+    depth_bias=...,
+)
+```
+
+World environment sprites are not converted into visible AABB solids. When a
+sprite is collidable, its collision footprint is registered separately and used
+only by player movement.

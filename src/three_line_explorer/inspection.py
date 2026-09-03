@@ -58,7 +58,7 @@ class InspectableProp:
     render_object_id: int
     bounds: AABB
     text_key: str
-    sprite_id: PropSpriteId
+    sprite_id: PropSpriteId | None
     marker_height: float = 8.0
     acquire_padding_x: float = 28.0
     acquire_padding_z: float = 12.0

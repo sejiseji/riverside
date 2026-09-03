@@ -5,11 +5,16 @@ from unittest import TestCase
 from three_line_explorer import palette
 from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
 from three_line_explorer.config import (
+    ENVIRONMENT_OBJECT_ID_BASE,
     FLOOR_OBJECT_ID,
     INSPECTABLE_OBJECT_ID_BASE,
     PLAYER_OBJECT_ID,
     RIVER_OBJECT_ID,
     CameraShotId,
+)
+from three_line_explorer.environment_sprites import (
+    EnvironmentSpriteAtlas,
+    EnvironmentSpriteRegion,
 )
 from three_line_explorer.inspection_prop_sprites import (
     PropSpriteAtlas,
@@ -82,6 +87,30 @@ class RendererTests(TestCase):
         self.assertNotIn(INSPECTABLE_OBJECT_ID_BASE + 1, {solid.object_id for solid in stage.solids})
         self.assertNotIn(
             INSPECTABLE_OBJECT_ID_BASE + 1,
+            {face.object_id for face in renderer.render_faces},
+        )
+
+    def test_environment_sprites_are_rendered_without_aabb_faces(self) -> None:
+        renderer = Renderer.create()
+        renderer.environment_sprite_atlas = make_fake_environment_atlas()
+        player = create_player()
+        player.x = -198.0
+        stage = Stage.create_prototype()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        object_ids = {sprite.object_id for sprite in renderer.render_sprites}
+        self.assertIn(ENVIRONMENT_OBJECT_ID_BASE + 3, object_ids)
+        self.assertNotIn(
+            ENVIRONMENT_OBJECT_ID_BASE + 3,
             {face.object_id for face in renderer.render_faces},
         )
 
@@ -161,5 +190,27 @@ def make_fake_prop_atlas() -> PropSpriteAtlas:
                 world_width=20.0,
             )
             for index, sprite_id in enumerate(PropSpriteId)
+        },
+    )
+
+
+def make_fake_environment_atlas() -> EnvironmentSpriteAtlas:
+    return EnvironmentSpriteAtlas(
+        image=object(),
+        regions={
+            sprite_id: EnvironmentSpriteRegion(
+                u=index * 16,
+                v=0,
+                width=16,
+                height=16,
+                anchor_x=8,
+                anchor_y=15,
+                world_width=12.0,
+                colkey=8,
+                depth_bias=0.0,
+            )
+            for index, sprite_id in enumerate(
+                sprite.sprite_id for sprite in Stage.create_prototype().environment_sprites
+            )
         },
     )

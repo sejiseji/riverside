@@ -200,7 +200,7 @@ class App:
             self.player,
             intent.move_axis,
             dt=DT,
-            collision_provider=self.stage.candidate_solids,
+            collision_provider=self.stage.candidate_collision_solids,
         )
         self.visible_volume = update_visible_volume(self.player.x)
 

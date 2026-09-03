@@ -28,6 +28,10 @@ from three_line_explorer.config import (
     VIEWPORT_X,
     VIEWPORT_Y,
 )
+from three_line_explorer.environment_sprites import (
+    EnvironmentSpriteAtlas,
+    build_environment_sprite_atlas,
+)
 from three_line_explorer.geometry import Face, make_aabb_faces, make_floor_face
 from three_line_explorer.inspection import prop_sprite_anchor
 from three_line_explorer.inspection_prop_sprites import (
@@ -37,6 +41,11 @@ from three_line_explorer.inspection_prop_sprites import (
     calculate_sprite_scale,
 )
 from three_line_explorer.math3d import AABB, Vec3
+from three_line_explorer.parallax import (
+    ParallaxAtlas,
+    build_parallax_atlas,
+    draw_parallax_background,
+)
 from three_line_explorer.player import PlayerState
 from three_line_explorer.player_sprite import (
     PLAYER_SPRITE_FRAME_H,
@@ -90,7 +99,7 @@ class RenderSprite:
     anchor_offset_x: float
     anchor_offset_y: float
     scale: float
-    colkey: int
+    colkey: int | None
 
 
 @dataclass(slots=True)
@@ -108,6 +117,8 @@ class Renderer:
     render_lines: list[RenderLine]
     render_sprites: list[RenderSprite]
     prop_sprite_atlas: PropSpriteAtlas | None = None
+    environment_sprite_atlas: EnvironmentSpriteAtlas | None = None
+    parallax_atlas: ParallaxAtlas | None = None
 
     @classmethod
     def create(cls) -> Renderer:
@@ -127,6 +138,10 @@ class Renderer:
         load_player_sprite_sheet(pyxel)
         if self.prop_sprite_atlas is None:
             self.prop_sprite_atlas = build_prop_sprite_atlas(pyxel)
+        if self.environment_sprite_atlas is None:
+            self.environment_sprite_atlas = build_environment_sprite_atlas(pyxel)
+        if self.parallax_atlas is None:
+            self.parallax_atlas = build_parallax_atlas(pyxel)
         stats = self.build_scene(
             stage,
             visible_volume,
@@ -138,6 +153,7 @@ class Renderer:
         )
 
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
+        draw_parallax_background(pyxel, self.parallax_atlas, snapshot, player.x)
         render_items = [
             (_render_face_sort_key(face), 0, face)
             for face in self.render_faces
@@ -181,7 +197,12 @@ class Renderer:
 
         candidates = stage.candidate_solids(visible_volume.bounds)
         inspectable_props = stage.candidate_inspectable_props(visible_volume.bounds)
-        stats.candidate_objects = len(candidates) + len(inspectable_props)
+        environment_sprites = stage.candidate_environment_sprites(visible_volume.bounds)
+        stats.candidate_objects = (
+            len(candidates)
+            + len(inspectable_props)
+            + len(environment_sprites)
+        )
         for solid in candidates:
             clipped_bounds = intersect_aabb(solid.bounds, visible_volume.bounds)
             if clipped_bounds is None:
@@ -207,6 +228,9 @@ class Renderer:
                     stats,
                     object_sort_center=object_sort_center,
                 )
+
+        for sprite in environment_sprites:
+            self._enqueue_environment_sprite(sprite, visible_volume.bounds, snapshot)
 
         for prop in inspectable_props:
             self._enqueue_inspectable_prop_sprite(prop, visible_volume.bounds, snapshot)
@@ -262,7 +286,11 @@ class Renderer:
         snapshot: CameraSnapshot,
     ) -> None:
         atlas = self.prop_sprite_atlas
-        if atlas is None or not visible_bounds.intersects(prop.bounds):
+        if (
+            atlas is None
+            or prop.sprite_id is None
+            or not visible_bounds.intersects(prop.bounds)
+        ):
             return
 
         anchor_world = prop_sprite_anchor(prop)
@@ -299,6 +327,52 @@ class Renderer:
                 anchor_offset_y=region.anchor_y,
                 scale=scale,
                 colkey=PROP_SPRITE_TRANSPARENT_COLOR,
+            )
+        )
+
+    def _enqueue_environment_sprite(
+        self,
+        sprite: Any,
+        visible_bounds: AABB,
+        snapshot: CameraSnapshot,
+    ) -> None:
+        atlas = self.environment_sprite_atlas
+        if atlas is None or not visible_bounds.intersects(sprite.bounds):
+            return
+
+        camera_point = world_to_camera(snapshot, sprite.anchor)
+        projected = project_camera_point(snapshot, camera_point)
+        if projected is None:
+            return
+
+        region = atlas.regions[sprite.sprite_id]
+        scale = calculate_sprite_scale(
+            snapshot.focal_px,
+            camera_point.z,
+            region.world_width,
+            region.width,
+        )
+        if scale <= 0.0:
+            return
+
+        lane_depth, route_depth = _object_sort_depths(sprite.anchor, snapshot)
+        self.render_sprites.append(
+            RenderSprite(
+                layer=RenderLayer.SOLID,
+                lane_depth=lane_depth,
+                route_depth=route_depth,
+                depth=camera_point.z + region.depth_bias,
+                object_id=sprite.object_id,
+                anchor=projected,
+                image_source=atlas.image,
+                u=region.u,
+                v=region.v,
+                w=region.width,
+                h=region.height,
+                anchor_offset_x=region.anchor_x,
+                anchor_offset_y=region.anchor_y,
+                scale=scale,
+                colkey=region.colkey,
             )
         )
 
@@ -548,8 +622,8 @@ def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, 
 def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, float, int, int]:
     return (
         sprite.layer,
-        -sprite.lane_depth,
-        -sprite.route_depth,
+        0.0,
+        0.0,
         -sprite.depth,
         sprite.object_id,
         0,

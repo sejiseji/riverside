@@ -5,12 +5,17 @@ from math import floor
 
 from three_line_explorer.config import (
     CameraShotId,
+    ENVIRONMENT_OBJECT_ID_BASE,
     INSPECTABLE_OBJECT_ID_BASE,
     LaneId,
     RIVER_START_Z,
     STAGE_CHUNK_SIZE_X,
     STAGE_MAX_X,
     STAGE_MIN_X,
+)
+from three_line_explorer.environment_sprites import (
+    EnvironmentSpriteInstance,
+    make_environment_sprite_instance,
 )
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.inspection import InspectableProp
@@ -57,13 +62,19 @@ class Stage:
     solids: tuple[AabbSolid, ...]
     zones: tuple[CameraZone, ...]
     inspectable_props: tuple[InspectableProp, ...] = ()
+    environment_sprites: tuple[EnvironmentSpriteInstance, ...] = ()
+    collision_solids: tuple[AabbSolid, ...] = ()
     chunks: dict[int, tuple[AabbSolid, ...]] = field(default_factory=dict)
     prop_chunks: dict[int, tuple[InspectableProp, ...]] = field(default_factory=dict)
+    environment_sprite_chunks: dict[int, tuple[EnvironmentSpriteInstance, ...]] = field(default_factory=dict)
+    collision_chunks: dict[int, tuple[AabbSolid, ...]] = field(default_factory=dict)
 
     @classmethod
     def create_prototype(cls) -> Stage:
         solids = tuple(_create_prototype_solids())
         inspectable_props = tuple(_create_prototype_inspectable_props())
+        environment_sprites = tuple(_create_prototype_environment_sprites())
+        collision_solids = tuple(_create_environment_collision_solids(environment_sprites))
         zones = (
             CameraZone(
                 x_min=140.0,
@@ -92,7 +103,13 @@ class Stage:
                 label="ALLOW_A_C",
             ),
         )
-        stage = cls(solids=solids, zones=zones, inspectable_props=inspectable_props)
+        stage = cls(
+            solids=solids,
+            zones=zones,
+            inspectable_props=inspectable_props,
+            environment_sprites=environment_sprites,
+            collision_solids=collision_solids,
+        )
         stage.rebuild_chunks()
         return stage
 
@@ -112,6 +129,26 @@ class Stage:
             for index in range(first, last + 1):
                 prop_mutable.setdefault(index, []).append(prop)
         self.prop_chunks = {index: tuple(values) for index, values in prop_mutable.items()}
+
+        environment_mutable: dict[int, list[EnvironmentSpriteInstance]] = {}
+        for sprite in self.environment_sprites:
+            first = chunk_index(sprite.bounds.minimum.x)
+            last = chunk_index(sprite.bounds.maximum.x)
+            for index in range(first, last + 1):
+                environment_mutable.setdefault(index, []).append(sprite)
+        self.environment_sprite_chunks = {
+            index: tuple(values) for index, values in environment_mutable.items()
+        }
+
+        collision_mutable: dict[int, list[AabbSolid]] = {}
+        for solid in (*self.solids, *self.collision_solids):
+            first = chunk_index(solid.bounds.minimum.x)
+            last = chunk_index(solid.bounds.maximum.x)
+            for index in range(first, last + 1):
+                collision_mutable.setdefault(index, []).append(solid)
+        self.collision_chunks = {
+            index: tuple(values) for index, values in collision_mutable.items()
+        }
 
     def candidate_solids(self, bounds: AABB) -> tuple[AabbSolid, ...]:
         first = chunk_index(bounds.minimum.x)
@@ -139,6 +176,37 @@ class Stage:
                 seen.add(prop.object_id)
                 if prop.bounds.intersects(bounds):
                     candidates.append(prop)
+        return tuple(candidates)
+
+    def candidate_environment_sprites(
+        self,
+        bounds: AABB,
+    ) -> tuple[EnvironmentSpriteInstance, ...]:
+        first = chunk_index(bounds.minimum.x)
+        last = chunk_index(bounds.maximum.x)
+        seen: set[int] = set()
+        candidates: list[EnvironmentSpriteInstance] = []
+        for index in range(first, last + 1):
+            for sprite in self.environment_sprite_chunks.get(index, ()):
+                if sprite.object_id in seen:
+                    continue
+                seen.add(sprite.object_id)
+                if sprite.bounds.intersects(bounds):
+                    candidates.append(sprite)
+        return tuple(candidates)
+
+    def candidate_collision_solids(self, bounds: AABB) -> tuple[AabbSolid, ...]:
+        first = chunk_index(bounds.minimum.x)
+        last = chunk_index(bounds.maximum.x)
+        seen: set[int] = set()
+        candidates: list[AabbSolid] = []
+        for index in range(first, last + 1):
+            for solid in self.collision_chunks.get(index, ()):
+                if solid.object_id in seen:
+                    continue
+                seen.add(solid.object_id)
+                if solid.bounds.intersects(bounds):
+                    candidates.append(solid)
         return tuple(candidates)
 
     def active_camera_rule(self, player_x: float, lane_index: int) -> tuple[CameraRule, str]:
@@ -233,4 +301,52 @@ def _create_prototype_inspectable_props() -> list[InspectableProp]:
             text_key="driftwood",
             sprite_id=PropSpriteId.DRIFTWOOD,
         ),
+        InspectableProp(
+            object_id="environment_weathered_sign",
+            render_object_id=ENVIRONMENT_OBJECT_ID_BASE + 3,
+            bounds=AABB(
+                Vec3(-206.0, 0.0, -61.0),
+                Vec3(-190.0, 30.0, -45.0),
+            ),
+            text_key="weathered_forest_sign",
+            sprite_id=None,
+            marker_height=10.0,
+            acquire_padding_x=24.0,
+            acquire_padding_z=14.0,
+            release_padding_x=32.0,
+            release_padding_z=20.0,
+        ),
+    ]
+
+
+def _create_prototype_environment_sprites() -> list[EnvironmentSpriteInstance]:
+    def env(offset: int, sprite_id: str, x: float, z: float) -> EnvironmentSpriteInstance:
+        return make_environment_sprite_instance(
+            object_id=ENVIRONMENT_OBJECT_ID_BASE + offset,
+            sprite_id=sprite_id,
+            x=x,
+            z=z,
+        )
+
+    return [
+        env(1, "dead_tree_trunk", -336.0, -55.0),
+        env(2, "mossy_rock", 96.0, -22.0),
+        env(3, "weathered_sign", -198.0, -53.0),
+        env(4, "jizo", 324.0, -54.0),
+        env(5, "grass_tuft", -288.0, -51.0),
+        env(6, "fern", -126.0, -50.0),
+        env(7, "bracken", -8.0, -52.0),
+        env(8, "butterbur", 152.0, -54.0),
+        env(9, "horsetail", 252.0, -50.0),
+        env(10, "sapling", 410.0, -55.0),
+    ]
+
+
+def _create_environment_collision_solids(
+    sprites: tuple[EnvironmentSpriteInstance, ...],
+) -> list[AabbSolid]:
+    return [
+        AabbSolid(sprite.object_id, sprite.collision_bounds, 0, 0, 0)
+        for sprite in sprites
+        if sprite.collision_bounds is not None
     ]

@@ -19,6 +19,12 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - Stage camera zones can force or restrict camera shots.
 - Inspectable riverside props are non-collision objects with their own proximity and text data.
 - Inspection prompts are 2D UI markers projected from 3D anchor points.
+- Parallax scenery is drawn as source-defined 2D background layers inside the
+  3D viewport before floor, river, solids, sprites, prompts, and UI.
+- Environment world sprites use source-defined Pyxel color maps and are sorted
+  with player and prop sprites by contact-point camera depth.
+- Environment sprite collision footprints are separate from their visual
+  sprites and are not rendered as AABB boxes.
 
 ## Screen
 
@@ -54,7 +60,10 @@ River:
 - Current river start: Z=44
 - River extends to Z=180.
 - Solids must not extend past `RIVER_START_Z`.
-- Low inspectable props may be placed beyond `RIVER_START_Z`; they are not collision solids.
+- Low riverside props may be placed beyond `RIVER_START_Z`; they are not
+  collision solids.
+- Inland environmental props may also be inspectable when their visible sprite
+  and collision footprint are provided by the environment-sprite system.
 
 ## Player
 
@@ -118,8 +127,9 @@ Pointer:
   - `ui_fonts.py`: bundled font loading
 - Data type: `InspectableProp`
 - Collection: `Stage.inspectable_props`
-- Collision: none
-- Rendering: source-defined 32x24 prop sprites in the normal sprite render queue
+- Collision: none on the `InspectableProp` itself
+- Rendering: source-defined 32x24 prop sprites, or no prop sprite when another
+  world sprite supplies the visual object
 - Active target count: one nearest target
 - Proximity test: world-space X/Z AABB overlap
 - Acquisition padding: X=28, Z=12
@@ -133,6 +143,8 @@ Pointer:
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
 - Current text is Japanese prototype copy.
+- Current inspection targets: single sandal, clouded bottle, driftwood,
+  weathered sign
 - Current prop sprite set: single sandal, clouded bottle, driftwood
 - Prop sprite storage: Python source rows using Pyxel palette digits
 - Prop sprite transparent authoring char: `.`
@@ -142,8 +154,8 @@ Pointer:
   assets.
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
-- Prop sprite draw order: same Painter sprite queue as the player, sorted by
-  line depth, route depth, camera depth, and stable object id
+- Prop, environment, and player sprite draw order: same Painter sprite queue,
+  sorted by contact-point camera depth and stable object id
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 16 px, body 15 px
@@ -168,6 +180,16 @@ Pointer:
 - Source-defined inspection prop sprites: `src/three_line_explorer/inspection_prop_sprites.py`
 - Prop sprite atlas: 3 sprites x 32x24, generated once at runtime
 - Prop sprite image files: none
+- Source-defined environment pack: `src/three_line_explorer/generated_environment_assets.py`
+- Environment sprite atlas: world scenery sprites generated once at runtime
+- Environment sprite helper: `src/three_line_explorer/environment_sprites.py`
+- Parallax helper: `src/three_line_explorer/parallax.py`
+- Parallax layers: FAR 64x32 x4, MID 64x48 x4, NEAR 64x64 x4
+- Parallax sequence: `a -> b -> c -> d`, repeated per layer
+- Parallax scroll: `player.x * camera_snapshot.right.x` with layer-specific
+  speed
+- Parallax horizon: current interpolated camera elevation
+- Environment pack manifest: `docs/RIV014_5_environment_asset_manifest.md`
 - Shared pixel-map validation: `src/three_line_explorer/pixel_map_source.py`
 - Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`
 - Font third-party notice: `THIRD_PARTY_NOTICES.md`

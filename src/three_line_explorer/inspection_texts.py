@@ -31,4 +31,11 @@ INSPECTION_TEXTS: dict[str, InspectionText] = {
             "水に削られた表面だけが、妙にすべすべしている。",
         ),
     ),
+    "weathered_forest_sign": InspectionText(
+        title="古びた看板",
+        pages=(
+            "文字はほとんど消えている。かろうじて、川へ近づくな、という一文だけが読める。",
+            "板の裏側には、誰かが小さく日付を刻んだ跡がある。",
+        ),
+    ),
 }

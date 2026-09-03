@@ -32,9 +32,26 @@ class StageLayoutTests(TestCase):
         stage = Stage.create_prototype()
         self.assertGreaterEqual(len(stage.inspectable_props), 1)
         solid_ids = {solid.object_id for solid in stage.solids}
-        for prop in stage.inspectable_props:
+        river_props = [
+            prop for prop in stage.inspectable_props if prop.object_id.startswith("river_prop_")
+        ]
+        self.assertGreaterEqual(len(river_props), 1)
+        for prop in river_props:
             self.assertGreaterEqual(prop.bounds.minimum.z, RIVER_START_Z)
             self.assertNotIn(prop.render_object_id, solid_ids)
+
+    def test_environment_sign_is_an_inland_inspectable_without_prop_sprite(self) -> None:
+        stage = Stage.create_prototype()
+
+        sign = next(
+            prop
+            for prop in stage.inspectable_props
+            if prop.object_id == "environment_weathered_sign"
+        )
+
+        self.assertLess(sign.bounds.maximum.z, RIVER_START_Z)
+        self.assertEqual(sign.text_key, "weathered_forest_sign")
+        self.assertIsNone(sign.sprite_id)
 
     def test_prototype_stage_keeps_prop_count_small(self) -> None:
         stage = Stage.create_prototype()
