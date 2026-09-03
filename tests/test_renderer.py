@@ -9,10 +9,12 @@ from three_line_explorer.config import (
     FLOOR_OBJECT_ID,
     INSPECTABLE_OBJECT_ID_BASE,
     PLAYER_OBJECT_ID,
+    PLAYER_SHADOW_OBJECT_ID,
     RIVER_OBJECT_ID,
     SCENE_RENDER_FAR_MARGIN_Z,
     SCENE_RENDER_MARGIN_X,
     CameraShotId,
+    RenderLayer,
 )
 from three_line_explorer.environment_sprites import (
     EnvironmentSpriteAtlas,
@@ -120,6 +122,26 @@ class RendererTests(TestCase):
         )
 
         self.assertIn(900, {face.object_id for face in renderer.render_faces})
+
+    def test_player_shadow_is_projected_on_floor_before_player_sprite(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            Stage(solids=(), zones=()),
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        shadow = next(face for face in renderer.render_faces if face.object_id == PLAYER_SHADOW_OBJECT_ID)
+        player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+        self.assertEqual(shadow.layer, RenderLayer.FLOOR_GUIDE)
+        self.assertEqual(player_sprite.layer, RenderLayer.SOLID)
+        self.assertEqual(shadow.fill_color, palette.PLAYER_SHADOW)
 
     def test_inspectable_props_are_rendered_as_sprites_outside_collision_solids(self) -> None:
         renderer = Renderer.create()

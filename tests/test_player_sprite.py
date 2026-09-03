@@ -14,6 +14,7 @@ from three_line_explorer.player_sprite import (
     load_player_sprite_sheet,
     player_sprite_is_moving,
     player_sprite_row,
+    player_sprite_frame,
     player_sprite_source,
 )
 from three_line_explorer.player_sprite_data import (
@@ -102,16 +103,20 @@ class PlayerSpriteTests(TestCase):
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, 0)
 
-        player.velocity_x = 1.0
+        player.last_move_distance = 1.0
+        player.walk_phase = 1.0
         self.assertTrue(player_sprite_is_moving(player))
+        self.assertEqual(player_sprite_frame(player), 1)
         image_bank, u, *_ = player_sprite_source(player, 5)
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, PLAYER_SPRITE_FRAME_W)
 
+        player.walk_phase = 3.0
         image_bank, u, *_ = player_sprite_source(player, 15)
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, PLAYER_SPRITE_FRAME_W * 3)
 
+        player.walk_phase = 4.0
         image_bank, u, *_ = player_sprite_source(player, 20)
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, 0)

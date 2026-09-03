@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from math import pi
+from math import pi, sqrt
 from typing import Protocol
 
 from three_line_explorer.config import (
@@ -16,6 +16,8 @@ from three_line_explorer.config import (
     PLAYER_DECELERATION,
     PLAYER_MAX_SPEED,
     PLAYER_MOVE_READY_RADIANS,
+    PLAYER_WALK_FRAME_DISTANCE,
+    PLAYER_WALK_PHASE_WRAP,
     PLAYER_SIZE_X,
     PLAYER_SIZE_Y,
     PLAYER_SIZE_Z,
@@ -56,6 +58,8 @@ class PlayerState:
     pending_lane_step: int
     lane_turn_delay_remaining: float
     render_yaw: float
+    walk_phase: float
+    last_move_distance: float
 
 
 def player_min_x() -> float:
@@ -106,6 +110,8 @@ def create_player() -> PlayerState:
         pending_lane_step=0,
         lane_turn_delay_remaining=0.0,
         render_yaw=0.0 if PLAYER_START_FACING > 0 else pi,
+        walk_phase=0.0,
+        last_move_distance=0.0,
     )
 
 
@@ -120,6 +126,8 @@ def reset_player(player: PlayerState) -> None:
     player.pending_lane_step = fresh.pending_lane_step
     player.lane_turn_delay_remaining = fresh.lane_turn_delay_remaining
     player.render_yaw = fresh.render_yaw
+    player.walk_phase = fresh.walk_phase
+    player.last_move_distance = fresh.last_move_distance
 
 
 def change_lane_by_world_step(player: PlayerState, world_lane_step: int) -> None:
@@ -170,6 +178,8 @@ def update_player(
     dt: float = DT,
     collision_provider: CollisionProvider | None = None,
 ) -> None:
+    start_x = player.x
+    start_z = player.z
     move_axis = clamp(move_axis, -1.0, 1.0)
     move_direction = _move_direction(move_axis)
     target_z = LANE_Z[player.target_lane_index]
@@ -234,6 +244,15 @@ def update_player(
         player.z, blocked_z = _resolve_z_movement(player.z, desired_z, player.x, candidates)
     if not blocked_z and abs(player.z - target_z) < LANE_SNAP_EPSILON:
         player.z = target_z
+
+    player.last_move_distance = sqrt(
+        (player.x - start_x) * (player.x - start_x)
+        + (player.z - start_z) * (player.z - start_z)
+    )
+    if player.last_move_distance > 0.001:
+        player.walk_phase = (
+            player.walk_phase + player.last_move_distance / PLAYER_WALK_FRAME_DISTANCE
+        ) % PLAYER_WALK_PHASE_WRAP
 
     turn_alpha = half_life_alpha(dt, TURN_HALF_LIFE)
     player.render_yaw = lerp_angle(player.render_yaw, player.target_yaw, turn_alpha)

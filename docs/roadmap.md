@@ -173,9 +173,12 @@ RIV014.5C:
 ## RIV015: Player Sprite Polish
 
 - Tune cat sprite contact point, shadow, scale, and frame pacing.
-- Keep animation speed based on movement distance.
+- Keep animation speed based on actual movement distance.
 - Confirm direction mapping after all camera transitions.
 - Keep turn-before-move behavior intact.
+- Current first pass: player state now records `walk_phase` and
+  `last_move_distance`; sprite frames advance from real X/Z movement, and a
+  small floor-projected shadow anchors the character to the stage.
 
 ## RIV016: Collision Strengthening
 

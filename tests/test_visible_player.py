@@ -7,6 +7,7 @@ from three_line_explorer.config import (
     DT,
     LANE_TURN_DELAY_SECONDS,
     LANE_Z,
+    PLAYER_WALK_FRAME_DISTANCE,
     PLAYER_SIZE_X,
     PLAYER_SIZE_Z,
     STAGE_MAX_X,
@@ -61,6 +62,11 @@ class PlayerTests(TestCase):
         update_player(player, 1.0, dt=DT)
         self.assertGreater(player.x, 0.0)
         self.assertEqual(player.facing, 1)
+        self.assertGreater(player.last_move_distance, 0.0)
+        self.assertAlmostEqual(
+            player.walk_phase,
+            player.last_move_distance / PLAYER_WALK_FRAME_DISTANCE,
+        )
 
         player.x = STAGE_MAX_X
         update_player(player, 1.0, dt=DT)
@@ -78,6 +84,8 @@ class PlayerTests(TestCase):
 
         self.assertEqual(player.x, start_x)
         self.assertEqual(player.velocity_x, 0.0)
+        self.assertEqual(player.last_move_distance, 0.0)
+        self.assertEqual(player.walk_phase, 0.0)
         self.assertEqual(player.facing, -1)
         self.assertEqual(player.target_yaw, pi)
         self.assertGreater(player.render_yaw, 0.0)

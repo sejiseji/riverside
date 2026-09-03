@@ -80,6 +80,12 @@ River:
 - Move-ready yaw tolerance: 12 degrees
 - Lane half-life: 0.055
 - Lane turn delay: 0.10 seconds
+- Walk animation advances from actual X/Z movement distance, not from
+  `pyxel.frame_count`.
+- Turn-in-place, reading panels, and blocked frames keep the sprite on an idle
+  frame because `last_move_distance` is zero.
+- A small player shadow is projected as a floor-aligned quad before solid and
+  sprite rendering.
 
 ## Camera
 
@@ -183,6 +189,10 @@ Pointer:
 - Current sprite layout: 4 directions x 4 frames
 - Frame size: 48x64
 - Transparent color: Pyxel color 2
+- Frame selection: `frame 0` when idle, otherwise `walk_phase` selects the
+  4-frame walk sequence.
+- Walk phase source: actual player movement distance divided by
+  `PLAYER_WALK_FRAME_DISTANCE`.
 - Source-defined inspection prop sprites: `src/three_line_explorer/inspection_prop_sprites.py`
 - Prop sprite atlas: 3 sprites x 32x24, generated once at runtime
 - Prop sprite image files: none

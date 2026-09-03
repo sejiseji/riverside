@@ -178,6 +178,7 @@ class App:
 
         if self.interaction.panel_open:
             self.player.velocity_x = 0.0
+            self.player.last_move_distance = 0.0
             if intent.text_panel_advance_requested:
                 advance_or_close_inspection(self.interaction)
             self.camera.update(DT)
@@ -186,6 +187,7 @@ class App:
         if intent.inspection_prompt_object_id is not None:
             self._try_open_inspection(intent.inspection_prompt_object_id)
             self.player.velocity_x = 0.0
+            self.player.last_move_distance = 0.0
             self.camera.update(DT)
             return
 

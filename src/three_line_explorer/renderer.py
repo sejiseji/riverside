@@ -19,6 +19,10 @@ from three_line_explorer.config import (
     LANE_Z,
     NEAR_PLANE,
     PLAYER_OBJECT_ID,
+    PLAYER_SHADOW_OBJECT_ID,
+    PLAYER_SHADOW_SIZE_X,
+    PLAYER_SHADOW_SIZE_Z,
+    PLAYER_SHADOW_Y,
     RenderLayer,
     RIVER_OBJECT_ID,
     RIVER_START_Z,
@@ -249,6 +253,7 @@ class Renderer:
         for prop in inspectable_props:
             self._enqueue_inspectable_prop_sprite(prop, render_bounds, snapshot)
 
+        self._enqueue_player_shadow(player, snapshot, stats)
         self._enqueue_player_sprite(player, snapshot, frame_count)
 
         if show_lanes:
@@ -258,6 +263,37 @@ class Renderer:
 
         stats.visible_faces = len(self.render_faces)
         return stats
+
+    def _enqueue_player_shadow(
+        self,
+        player: PlayerState,
+        snapshot: CameraSnapshot,
+        stats: RenderStats,
+    ) -> None:
+        shadow_bounds = AABB(
+            Vec3(
+                player.x - PLAYER_SHADOW_SIZE_X * 0.5,
+                GROUND_Y + PLAYER_SHADOW_Y,
+                player.z - PLAYER_SHADOW_SIZE_Z * 0.5,
+            ),
+            Vec3(
+                player.x + PLAYER_SHADOW_SIZE_X * 0.5,
+                GROUND_Y + PLAYER_SHADOW_Y,
+                player.z + PLAYER_SHADOW_SIZE_Z * 0.5,
+            ),
+        )
+        self._enqueue_face(
+            make_floor_face(
+                shadow_bounds,
+                PLAYER_SHADOW_OBJECT_ID,
+                palette.PLAYER_SHADOW,
+                palette.PLAYER_SHADOW,
+            ),
+            RenderLayer.FLOOR_GUIDE,
+            snapshot,
+            stats,
+            object_sort_center=shadow_bounds.center,
+        )
 
     def _enqueue_player_sprite(
         self,
