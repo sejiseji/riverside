@@ -137,6 +137,8 @@ Pointer:
 - Prop sprite storage: Python source rows using Pyxel palette digits
 - Prop sprite transparent authoring char: `.`
 - Prop sprite transparent palette index: 8
+- Prop sprite visible source chars: `.012345679abcdef`; color `8` is reserved
+  for transparency and cannot be used as a visible prop color.
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
 - Prop sprite draw order: same Painter sprite queue as the player, sorted by
@@ -165,6 +167,7 @@ Pointer:
 - Source-defined inspection prop sprites: `src/three_line_explorer/inspection_prop_sprites.py`
 - Prop sprite atlas: 3 sprites x 32x24, generated once at runtime
 - Prop sprite image files: none
+- Shared pixel-map validation: `src/three_line_explorer/pixel_map_source.py`
 - Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`
 - Font third-party notice: `THIRD_PARTY_NOTICES.md`
 

@@ -10,12 +10,19 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Final
 
+from three_line_explorer.pixel_map_source import (
+    compile_pixel_rows,
+    palette_digit,
+    valid_source_chars,
+    validate_pixel_map,
+)
+
 
 CELL_W: Final = 32
 CELL_H: Final = 24
 TRANSPARENT_COLOR: Final = 8
-TRANSPARENT_DIGIT: Final = f"{TRANSPARENT_COLOR:x}"
-_VALID_SOURCE_CHARS: Final = frozenset(".0123456789abcdef")
+TRANSPARENT_DIGIT: Final = palette_digit(TRANSPARENT_COLOR)
+_VALID_SOURCE_CHARS: Final = valid_source_chars(TRANSPARENT_COLOR)
 
 
 class PropSpriteId(StrEnum):
@@ -157,20 +164,13 @@ ATLAS_H: Final = CELL_H
 
 
 def validate_sprite_rows(sprite_id: PropSpriteId, rows: tuple[str, ...]) -> None:
-    if len(rows) != CELL_H:
-        raise ValueError(f"{sprite_id}: expected {CELL_H} rows, got {len(rows)}")
-
-    non_transparent_count = 0
-    for y, row in enumerate(rows):
-        if len(row) != CELL_W:
-            raise ValueError(f"{sprite_id}: row {y} must be {CELL_W} chars, got {len(row)}")
-        invalid = set(row) - _VALID_SOURCE_CHARS
-        if invalid:
-            raise ValueError(f"{sprite_id}: invalid chars at row {y}: {sorted(invalid)}")
-        non_transparent_count += sum(char != "." for char in row)
-
-    if non_transparent_count == 0:
-        raise ValueError(f"{sprite_id}: sprite is fully transparent")
+    validate_pixel_map(
+        asset_id=str(sprite_id),
+        rows=rows,
+        width=CELL_W,
+        height=CELL_H,
+        transparent_index=TRANSPARENT_COLOR,
+    )
 
 
 def validate_all_sprites() -> None:
@@ -179,7 +179,7 @@ def validate_all_sprites() -> None:
 
 
 def compile_sprite_rows(rows: tuple[str, ...]) -> list[str]:
-    return [row.replace(".", TRANSPARENT_DIGIT) for row in rows]
+    return compile_pixel_rows(rows, TRANSPARENT_COLOR)
 
 
 def visible_bounds(rows: tuple[str, ...]) -> tuple[int, int, int, int]:

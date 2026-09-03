@@ -50,8 +50,9 @@ src/three_line_explorer/inspection_prop_sprites.py
 ```
 
 Each prop sprite is authored as 32x24 rows of Pyxel palette digits. `.` is
-converted to transparent color `8` when the runtime atlas is built. The current
-atlas contains the single sandal, clouded bottle, and driftwood sprites.
+converted to transparent color `8` when the runtime atlas is built, so visible
+prop pixels must not use color `8`. The current atlas contains the single
+sandal, clouded bottle, and driftwood sprites.
 
 Japanese font:
 
@@ -72,6 +73,7 @@ Planning docs:
 
 ```text
 docs/current_baseline.md
+docs/asset_contract.md
 docs/roadmap.md
 ```
 

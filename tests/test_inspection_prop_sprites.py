@@ -14,6 +14,7 @@ from three_line_explorer.inspection_prop_sprites import (
     calculate_sprite_scale,
     compile_sprite_rows,
     validate_all_sprites,
+    validate_sprite_rows,
     visible_bounds,
 )
 
@@ -35,6 +36,13 @@ class InspectionPropSpriteTests(TestCase):
 
         self.assertNotIn(".", "".join(compiled))
         self.assertIn(TRANSPARENT_DIGIT, compiled[0])
+
+    def test_reserved_transparent_digit_is_not_allowed_as_source_color(self) -> None:
+        rows = tuple(["." * CELL_W] * CELL_H)
+        bad_rows = rows[:12] + ("." * 12 + TRANSPARENT_DIGIT + "." * 19,) + rows[13:]
+
+        with self.assertRaises(ValueError):
+            validate_sprite_rows(SPRITE_ORDER[0], bad_rows)
 
     def test_visible_bounds_detects_bottom_anchor(self) -> None:
         for definition in SPRITE_DEFINITIONS.values():
