@@ -153,7 +153,13 @@ class Renderer:
         )
 
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
-        draw_parallax_background(pyxel, self.parallax_atlas, snapshot, player.x)
+        draw_parallax_background(
+            pyxel,
+            self.parallax_atlas,
+            snapshot,
+            player.x,
+            visible_volume.bounds,
+        )
         render_items = [
             (_render_face_sort_key(face), 0, face)
             for face in self.render_faces
@@ -622,8 +628,8 @@ def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, 
 def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, float, int, int]:
     return (
         sprite.layer,
-        0.0,
-        0.0,
+        -sprite.lane_depth,
+        -sprite.route_depth,
         -sprite.depth,
         sprite.object_id,
         0,

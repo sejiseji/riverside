@@ -19,10 +19,10 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - Stage camera zones can force or restrict camera shots.
 - Inspectable riverside props are non-collision objects with their own proximity and text data.
 - Inspection prompts are 2D UI markers projected from 3D anchor points.
-- Parallax scenery is drawn as source-defined 2D background layers inside the
-  3D viewport before floor, river, solids, sprites, prompts, and UI.
-- Environment world sprites use source-defined Pyxel color maps and are sorted
-  with player and prop sprites by contact-point camera depth.
+- Parallax scenery is drawn as source-defined tiles projected from the far
+  stage edge, before floor, river, solids, sprites, prompts, and UI.
+- Environment world sprites use source-defined Pyxel color maps and share the
+  same camera-side stage-order sort as player and prop sprites.
 - Environment sprite collision footprints are separate from their visual
   sprites and are not rendered as AABB boxes.
 
@@ -155,7 +155,8 @@ Pointer:
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
 - Prop, environment, and player sprite draw order: same Painter sprite queue,
-  sorted by contact-point camera depth and stable object id
+  sorted by camera-side lane depth, route depth, camera depth, and stable
+  object id
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 16 px, body 15 px
@@ -186,9 +187,12 @@ Pointer:
 - Parallax helper: `src/three_line_explorer/parallax.py`
 - Parallax layers: FAR 64x32 x4, MID 64x48 x4, NEAR 64x64 x4
 - Parallax sequence: `a -> b -> c -> d`, repeated per layer
-- Parallax scroll: `player.x * camera_snapshot.right.x` with layer-specific
-  speed
-- Parallax horizon: current interpolated camera elevation
+- Parallax scroll: `player.x * camera_snapshot.right.x` converted to a
+  layer-specific world offset
+- Parallax placement: layers stand just beyond the far Z edge of the current
+  visible volume, with A/B using the inland edge and C using the river edge
+- Parallax projection: each tile is a bottom-anchored billboard whose contact
+  point is projected through the current camera
 - Environment pack manifest: `docs/RIV014_5_environment_asset_manifest.md`
 - Shared pixel-map validation: `src/three_line_explorer/pixel_map_source.py`
 - Japanese panel font: `assets/fonts/DotGothic16-Regular.ttf`

@@ -55,12 +55,15 @@ NEAR_PIXELS_PER_WORLD = 0.18
 ```
 
 ショットIDでスクロール方向を分岐せず、現在のカメラ基底を使います。
+背景はスクリーン上部の固定帯ではなく、可視領域の奥側Zエッジの外側へ
+立てたビルボードタイルとして投影します。
 
 ```python
 screen_x_orientation = camera_snapshot.right.x
-scroll_x = round(
-    -player.x * pixels_per_world * screen_x_orientation
+scroll_world = (
+    player.x * pixels_per_world * screen_x_orientation
 )
+layer_z = far_edge_z + farther_z_direction * z_offset
 ```
 
 ## 描画順
@@ -87,9 +90,13 @@ UI
 ```python
 relative = world_anchor - camera_snapshot.position
 camera_depth = relative.dot(camera_snapshot.forward)
+lane_depth = world_anchor.z * camera_snapshot.forward.z
+route_depth = world_anchor.x * camera_snapshot.forward.x
 
 items.sort(
     key=lambda item: (
+        -item.lane_depth,
+        -item.route_depth,
         -(item.camera_depth + item.depth_bias),
         item.object_id,
     )
@@ -100,6 +107,8 @@ items.sort(
 - プレイヤーも同じキューへ入れる
 - X位置、Zライン、カメラA/B/Cは投影深度へ自然に反映される
 - 同深度時は `object_id` で安定化
+- 直方体面との統合描画では、カメラの左右回り込みに合わせた
+  `lane_depth` と `route_depth` を先に使い、左右/奥手前の反転を扱う
 
 ## 衝突と調査
 

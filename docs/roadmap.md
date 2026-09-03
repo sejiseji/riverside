@@ -51,8 +51,8 @@ GitHub Pages `.pyxapp` publishing.
 ## RIV014.5: Parallax Background Foundation
 
 RIV014.5 sits after area composition and before camera polish. The background
-needs the stage meaning and horizon to exist, but camera framing should be
-polished while the background is visible.
+needs the stage meaning and far visible-volume edge to exist, but camera framing
+should be polished while the background is visible.
 
 ### Split Background Types
 
@@ -85,19 +85,24 @@ queue. The initial parallax pass should stay as 2D background layers.
   - NEAR: 64x64
 - Start with around four tiles per layer and repeat them by a fixed sequence.
 
-### Scroll and Horizon
+### Scroll and Projection
 
 Use `player.x`, not `visible_volume.center_x`, because the camera keeps following
 the player even at stage ends.
 
-Background X scroll:
+The background is not a fixed screen-space strip. Each layer is drawn as
+bottom-anchored billboard tiles standing just beyond the far visible-volume Z
+edge.
+
+Camera side:
 
 ```python
-scroll_px = round(
-    -player.x
-    * layer.pixels_per_world
-    * camera_snapshot.right.x
-)
+if camera_snapshot.position.z >= camera_snapshot.pivot.z:
+    edge_z = visible_bounds.minimum.z
+    farther_z_direction = -1.0
+else:
+    edge_z = visible_bounds.maximum.z
+    farther_z_direction = 1.0
 ```
 
 Initial layer speeds:
@@ -106,19 +111,18 @@ Initial layer speeds:
 - MID: `0.10`
 - NEAR: `0.18`
 
-Horizon Y should follow the current interpolated camera elevation:
+Layer placement:
 
 ```python
-horizon_y = (
-    viewport_center_y
-    - camera_snapshot.focal_px * math.tan(camera_elevation)
-)
+layer_z = edge_z + farther_z_direction * layer.z_offset
+scroll_world = player.x * layer.pixels_per_world * camera_snapshot.right.x
 ```
 
-Layer bottom Y is then:
+Each tile anchor is projected through the current camera:
 
 ```python
-layer_bottom_y = round(horizon_y) + layer.horizon_offset_y
+anchor = Vec3(tile_center_x, GROUND_Y, layer_z)
+screen_anchor = project_world_point(camera_snapshot, anchor)
 ```
 
 ### Substages
@@ -132,7 +136,8 @@ RIV014.5A:
 RIV014.5B:
 
 - Draw FAR, MID, and NEAR layers inside the 3D viewport clip.
-- Fill the screen width with repeated tiles.
+- Project repeated tiles from the far visible-volume Z edge so the background
+  rises from the stage edge instead of sitting as a fixed screen-space band.
 - Use camera basis for scroll direction so A/B/C and camera transitions remain
   continuous.
 - Add a debug toggle for background visibility.
@@ -182,8 +187,9 @@ RIV014.5C:
   - C: river-facing background.
 - Keep solid-face painter sorting stable by the existing line, route, camera
   depth, and object-id keys.
-- Keep player, prop, and environment billboard sprites sorted by contact-point
-  camera depth and stable object id.
+- Keep player, prop, and environment billboard sprites sorted by the same
+  camera-side lane depth, route depth, camera depth, and stable object-id
+  structure as the rest of the stage.
 
 ## RIV018: Mobile Input Polish
 

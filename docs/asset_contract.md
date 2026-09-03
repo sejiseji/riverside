@@ -142,7 +142,7 @@ Tile seam rules:
 ```text
 Purpose: nearby scenery and small obstacles placed on the stage
 Storage: source-defined Pyxel color maps
-Drawing: contact-point billboard sprites in the normal sprite depth queue
+Drawing: contact-point billboard sprites in the normal stage-order sprite queue
 Collision: optional separate X/Z footprint
 Current count: 10
 Runtime transparent_color: Pyxel color 8

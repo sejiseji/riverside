@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from math import tan
 from unittest import TestCase
 
 from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
@@ -9,8 +8,10 @@ from three_line_explorer.generated_environment_assets import PARALLAX_SEQUENCES,
 from three_line_explorer.parallax import (
     build_parallax_atlas,
     draw_parallax_background,
-    horizon_screen_y,
+    far_stage_edge_z,
+    farther_z_direction,
 )
+from three_line_explorer.visible_volume import update_visible_volume
 
 
 class ParallaxTests(TestCase):
@@ -25,20 +26,23 @@ class ParallaxTests(TestCase):
         self.assertEqual(set(atlas.regions), expected)
         self.assertEqual(len(atlas.image.set_calls), len(expected))
 
-    def test_horizon_uses_interpolated_camera_elevation(self) -> None:
-        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
+    def test_far_edge_flips_by_camera_side(self) -> None:
+        visible = update_visible_volume(0.0)
+        shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
+        shot_c = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW], 0.0, 0.0)
 
-        self.assertAlmostEqual(
-            horizon_screen_y(snapshot),
-            snapshot.screen_center_y - snapshot.focal_px * tan(snapshot.params.elevation),
-        )
+        self.assertEqual(far_stage_edge_z(shot_a, visible.bounds), visible.bounds.minimum.z)
+        self.assertEqual(far_stage_edge_z(shot_c, visible.bounds), visible.bounds.maximum.z)
+        self.assertEqual(farther_z_direction(shot_a), -1.0)
+        self.assertEqual(farther_z_direction(shot_c), 1.0)
 
     def test_draw_parallax_emits_tiles_for_each_layer(self) -> None:
         pyxel = FakePyxel()
         atlas = build_parallax_atlas(pyxel)
         snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 40.0, 0.0)
+        visible = update_visible_volume(40.0)
 
-        draw_parallax_background(pyxel, atlas, snapshot, player_x=40.0)
+        draw_parallax_background(pyxel, atlas, snapshot, player_x=40.0, visible_bounds=visible.bounds)
 
         asset_id_by_uv = {
             (region.u, region.v): asset_id
@@ -97,5 +101,8 @@ class FakePyxel:
         _width: int,
         _height: int,
         _colkey: int | None,
+        *,
+        scale: float = 1.0,
     ) -> None:
+        del scale
         self.blt_calls.append(BltCall(u, v))
