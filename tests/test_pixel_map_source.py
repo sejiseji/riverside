@@ -20,6 +20,12 @@ class PixelMapSourceTests(TestCase):
         self.assertIn("9", chars)
         self.assertNotIn("8", chars)
 
+    def test_reserved_color_is_per_asset_not_global(self) -> None:
+        chars = valid_source_chars(2)
+
+        self.assertIn("8", chars)
+        self.assertNotIn("2", chars)
+
     def test_opaque_source_chars_allow_all_palette_digits_but_no_dot(self) -> None:
         chars = valid_source_chars(None)
 
@@ -33,7 +39,7 @@ class PixelMapSourceTests(TestCase):
                 rows=("18", ".."),
                 width=2,
                 height=2,
-                transparent_index=8,
+                transparent_color=8,
             )
 
     def test_transparent_map_compiles_dots_to_reserved_color(self) -> None:
@@ -50,7 +56,7 @@ class PixelMapSourceTests(TestCase):
                 rows=("1.", "77"),
                 width=2,
                 height=2,
-                transparent_index=None,
+                transparent_color=None,
             )
 
     def test_uppercase_hex_is_rejected(self) -> None:
@@ -60,7 +66,7 @@ class PixelMapSourceTests(TestCase):
                 rows=("1A", "77"),
                 width=2,
                 height=2,
-                transparent_index=None,
+                transparent_color=None,
             )
 
     def test_fully_transparent_map_is_rejected(self) -> None:
@@ -70,7 +76,7 @@ class PixelMapSourceTests(TestCase):
                 rows=("..", ".."),
                 width=2,
                 height=2,
-                transparent_index=8,
+                transparent_color=8,
             )
 
     def test_palette_digit_range(self) -> None:

@@ -33,8 +33,8 @@ GitHub Pages `.pyxapp` publishing.
 - Keep props non-collision unless a separate collision object is explicitly
   needed.
 - Finalize the GPT prop-sprite authoring format: 32x24 Pyxel palette rows,
-  `.` as transparent authoring char, palette index 8 as runtime colkey, and no
-  visible use of color `8`.
+  `.` as transparent authoring char, palette index 8 as the prop
+  `transparent_color`, and no visible use of color `8` inside those prop assets.
 - Keep prop text and prop placement separate through `text_key`.
 - Use this stage to stabilize the content addition flow before larger layout
   work.
@@ -74,10 +74,10 @@ queue. The initial parallax pass should stay as 2D background layers.
 
 - Use source-defined Pyxel color rows.
 - Represent transparent authoring pixels with `.` and convert them to the layer
-  colkey at atlas build time.
-- Do not allow visible use of the reserved transparent digit in transparent
+  `transparent_color` at atlas build time.
+- Do not allow visible use of the layer's own transparent digit in transparent
   layers.
-- Use `colkey=None` for fully opaque layers such as sky.
+- Use `transparent_color=None` for fully opaque layers such as sky.
 - Avoid huge full-screen pixel maps in source.
 - Prefer tiled assets:
   - FAR: 64x32
@@ -146,7 +146,7 @@ RIV014.5C:
 ### Acceptance
 
 - Transparent background source rows contain only valid palette digits other
-  than the reserved transparent digit, plus `.`.
+  than that layer's own transparent digit, plus `.`.
 - Background images are generated once at startup.
 - Normal drawing stays to roughly 30 `blt` calls or fewer.
 - No blank gaps appear at tile boundaries or stage ends.

@@ -169,7 +169,7 @@ def validate_sprite_rows(sprite_id: PropSpriteId, rows: tuple[str, ...]) -> None
         rows=rows,
         width=CELL_W,
         height=CELL_H,
-        transparent_index=TRANSPARENT_COLOR,
+        transparent_color=TRANSPARENT_COLOR,
     )
 
 

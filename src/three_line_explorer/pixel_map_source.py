@@ -14,14 +14,14 @@ class PixelMapSource:
     width: int
     height: int
     rows: tuple[str, ...]
-    colkey: int | None
+    transparent_color: int | None
 
 
-def valid_source_chars(transparent_index: int | None) -> frozenset[str]:
-    if transparent_index is None:
+def valid_source_chars(transparent_color: int | None) -> frozenset[str]:
+    if transparent_color is None:
         return frozenset(HEX_DIGITS)
 
-    digit = palette_digit(transparent_index)
+    digit = palette_digit(transparent_color)
     return frozenset("." + HEX_DIGITS.replace(digit, ""))
 
 
@@ -37,14 +37,14 @@ def validate_pixel_map(
     rows: tuple[str, ...],
     width: int,
     height: int,
-    transparent_index: int | None,
+    transparent_color: int | None,
 ) -> None:
     if width <= 0:
         raise ValueError(f"{asset_id}: width must be positive, got {width}")
     if height <= 0:
         raise ValueError(f"{asset_id}: height must be positive, got {height}")
 
-    allowed = valid_source_chars(transparent_index)
+    allowed = valid_source_chars(transparent_color)
     if len(rows) != height:
         raise ValueError(f"{asset_id}: expected {height} rows, got {len(rows)}")
 
@@ -55,7 +55,7 @@ def validate_pixel_map(
         invalid = set(row) - allowed
         if invalid:
             raise ValueError(f"{asset_id}: invalid chars at row {y}: {sorted(invalid)}")
-        if transparent_index is None:
+        if transparent_color is None:
             visible_count += len(row)
         else:
             visible_count += sum(char != "." for char in row)
@@ -66,8 +66,8 @@ def validate_pixel_map(
 
 def compile_pixel_rows(
     rows: tuple[str, ...],
-    transparent_index: int | None,
+    transparent_color: int | None,
 ) -> list[str]:
-    if transparent_index is None:
+    if transparent_color is None:
         return list(rows)
-    return [row.replace(".", palette_digit(transparent_index)) for row in rows]
+    return [row.replace(".", palette_digit(transparent_color)) for row in rows]

@@ -9,8 +9,11 @@ and then integrated into the Pyxel prototype.
 - Use no anti-aliasing, alpha blending, soft shadows, blur, or semi-transparent
   pixels.
 - For transparent source maps, `.` means transparent.
-- A transparent source map must not use its reserved transparent color as a
-  visible color.
+- `.` is converted to the asset's own `transparent_color` at compile time.
+- The transparent color restriction is per asset and per `pyxel.blt()` call, not
+  global.
+- A transparent source map must not use its own `transparent_color` as a visible
+  color.
 - For opaque source maps, `.` is invalid and all `0..f` digits are available.
 
 Allowed source characters:
@@ -20,6 +23,10 @@ OPAQUE_SOURCE_CHARS = "0123456789abcdef"
 TRANSPARENT_8_SOURCE_CHARS = ".012345679abcdef"
 PLAYER_VISIBLE_SOURCE_CHARS = "013456789abcdef"
 ```
+
+For example, prop and parallax assets currently use `transparent_color=8`, so
+visible color `8` is unavailable inside those assets. Player sprites use
+`transparent_color=2`, so visible color `8` is still available to the player.
 
 ## Player Sprite Sheet
 
@@ -55,10 +62,10 @@ Storage: source-defined Pyxel color maps
 Cell size: 32x24 px
 Animation: none
 One prop: one sprite
-Runtime transparent color: Pyxel color 8
+Runtime transparent_color: Pyxel color 8
 Source transparent char: .
 Allowed transparent source chars: .012345679abcdef
-Visible color rule: color 8 cannot be used as visible prop pixels
+Visible color rule: color 8 cannot be used as visible pixels in this prop asset
 Current count: 3
 RIV013 target count: about 5
 ```
@@ -81,7 +88,7 @@ GPT handoff prompt:
 Create a riverside Pyxel prop sprite as a 32x24 color-index map.
 Return exactly 24 rows, each exactly 32 characters.
 Use only .012345679abcdef.
-. is transparent. Do not use visible color 8.
+. is transparent. This prop uses transparent_color 8, so do not use visible color 8.
 No anti-aliasing, semi-transparency, or extra whitespace.
 Keep the object readable as a small silhouette.
 ```
@@ -107,8 +114,8 @@ NEAR: 64x64 px x 4 tiles
 
 Transparent layer rules:
 
-- Use `.012345679abcdef` when the runtime colkey is color 8.
-- Do not use visible color 8.
+- Use `.012345679abcdef` when the runtime `transparent_color` is color 8.
+- Do not use visible color 8 in those transparent layer assets.
 - Align rows top to bottom.
 - Draw each tile by bottom alignment:
 

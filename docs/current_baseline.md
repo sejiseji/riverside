@@ -137,8 +137,9 @@ Pointer:
 - Prop sprite storage: Python source rows using Pyxel palette digits
 - Prop sprite transparent authoring char: `.`
 - Prop sprite transparent palette index: 8
-- Prop sprite visible source chars: `.012345679abcdef`; color `8` is reserved
-  for transparency and cannot be used as a visible prop color.
+- Prop sprite visible source chars: `.012345679abcdef`; color `8` is the prop
+  sprite transparent color and cannot be used as a visible prop color in those
+  assets.
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
 - Prop sprite draw order: same Painter sprite queue as the player, sorted by
