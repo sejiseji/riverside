@@ -84,8 +84,10 @@ River:
   `pyxel.frame_count`.
 - Turn-in-place, reading panels, and blocked frames keep the sprite on an idle
   frame because `last_move_distance` is zero.
-- A small player shadow is projected as a floor-aligned quad before solid and
-  sprite rendering.
+- A small player shadow is projected as a floor-aligned ellipse before solid
+  and sprite rendering.
+- The shadow uses the current sprite walk frame to apply subtle width/depth
+  scale changes.
 
 ## Camera
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import ceil, floor
+from math import ceil, cos, floor, sin, tau
 from typing import Any
 
 from three_line_explorer import palette
@@ -20,6 +20,9 @@ from three_line_explorer.config import (
     NEAR_PLANE,
     PLAYER_OBJECT_ID,
     PLAYER_SHADOW_OBJECT_ID,
+    PLAYER_SHADOW_FRAME_SCALE_X,
+    PLAYER_SHADOW_FRAME_SCALE_Z,
+    PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
     PLAYER_SHADOW_SIZE_Z,
     PLAYER_SHADOW_Y,
@@ -59,6 +62,7 @@ from three_line_explorer.player_sprite import (
     PLAYER_SPRITE_FRAME_W,
     PLAYER_SPRITE_TRANSPARENT_COLOR,
     load_player_sprite_sheet,
+    player_sprite_frame,
     player_sprite_source,
 )
 from three_line_explorer.projection import ProjectedPoint, project_camera_point, world_to_camera
@@ -270,29 +274,13 @@ class Renderer:
         snapshot: CameraSnapshot,
         stats: RenderStats,
     ) -> None:
-        shadow_bounds = AABB(
-            Vec3(
-                player.x - PLAYER_SHADOW_SIZE_X * 0.5,
-                GROUND_Y + PLAYER_SHADOW_Y,
-                player.z - PLAYER_SHADOW_SIZE_Z * 0.5,
-            ),
-            Vec3(
-                player.x + PLAYER_SHADOW_SIZE_X * 0.5,
-                GROUND_Y + PLAYER_SHADOW_Y,
-                player.z + PLAYER_SHADOW_SIZE_Z * 0.5,
-            ),
-        )
+        shadow_face = make_player_shadow_face(player)
         self._enqueue_face(
-            make_floor_face(
-                shadow_bounds,
-                PLAYER_SHADOW_OBJECT_ID,
-                palette.PLAYER_SHADOW,
-                palette.PLAYER_SHADOW,
-            ),
+            shadow_face,
             RenderLayer.FLOOR_GUIDE,
             snapshot,
             stats,
-            object_sort_center=shadow_bounds.center,
+            object_sort_center=shadow_face.center,
         )
 
     def _enqueue_player_sprite(
@@ -682,6 +670,32 @@ def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, f
 
 def _object_sort_depths(center: Vec3, snapshot: CameraSnapshot) -> tuple[float, float]:
     return center.z * snapshot.forward.z, center.x * snapshot.forward.x
+
+
+def make_player_shadow_face(player: PlayerState) -> Face:
+    frame = player_sprite_frame(player)
+    scale_x = PLAYER_SHADOW_FRAME_SCALE_X[frame % len(PLAYER_SHADOW_FRAME_SCALE_X)]
+    scale_z = PLAYER_SHADOW_FRAME_SCALE_Z[frame % len(PLAYER_SHADOW_FRAME_SCALE_Z)]
+    radius_x = PLAYER_SHADOW_SIZE_X * 0.5 * scale_x
+    radius_z = PLAYER_SHADOW_SIZE_Z * 0.5 * scale_z
+    center = Vec3(player.x, GROUND_Y + PLAYER_SHADOW_Y, player.z)
+    vertices = tuple(
+        Vec3(
+            center.x + cos(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_x,
+            center.y,
+            center.z + sin(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_z,
+        )
+        for index in range(PLAYER_SHADOW_SEGMENTS)
+    )
+    return Face(
+        object_id=PLAYER_SHADOW_OBJECT_ID,
+        face_index=0,
+        vertices=vertices,
+        normal=Vec3(0.0, 1.0, 0.0),
+        center=center,
+        fill_color=palette.PLAYER_SHADOW,
+        outline_color=palette.PLAYER_SHADOW,
+    )
 
 
 def render_scene_bounds(logical_bounds: AABB, snapshot: CameraSnapshot) -> AABB:

@@ -10,6 +10,9 @@ from three_line_explorer.config import (
     INSPECTABLE_OBJECT_ID_BASE,
     PLAYER_OBJECT_ID,
     PLAYER_SHADOW_OBJECT_ID,
+    PLAYER_SHADOW_FRAME_SCALE_X,
+    PLAYER_SHADOW_SEGMENTS,
+    PLAYER_SHADOW_SIZE_X,
     RIVER_OBJECT_ID,
     SCENE_RENDER_FAR_MARGIN_Z,
     SCENE_RENDER_MARGIN_X,
@@ -33,6 +36,7 @@ from three_line_explorer.renderer import (
     _face_sort_depth,
     _object_sort_depths,
     _render_sprite_sort_key,
+    make_player_shadow_face,
     render_scene_bounds,
 )
 from three_line_explorer.stage import Stage
@@ -142,6 +146,24 @@ class RendererTests(TestCase):
         self.assertEqual(shadow.layer, RenderLayer.FLOOR_GUIDE)
         self.assertEqual(player_sprite.layer, RenderLayer.SOLID)
         self.assertEqual(shadow.fill_color, palette.PLAYER_SHADOW)
+        self.assertEqual(len(shadow.points), PLAYER_SHADOW_SEGMENTS)
+
+    def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
+        player = create_player()
+        idle_shadow = make_player_shadow_face(player)
+        player.last_move_distance = 1.0
+        player.walk_phase = 2.0
+        moving_shadow = make_player_shadow_face(player)
+
+        idle_radius_x = idle_shadow.vertices[0].x - idle_shadow.center.x
+        moving_radius_x = moving_shadow.vertices[0].x - moving_shadow.center.x
+        self.assertEqual(len(idle_shadow.vertices), PLAYER_SHADOW_SEGMENTS)
+        self.assertAlmostEqual(idle_radius_x, PLAYER_SHADOW_SIZE_X * 0.5)
+        self.assertAlmostEqual(
+            moving_radius_x,
+            PLAYER_SHADOW_SIZE_X * 0.5 * PLAYER_SHADOW_FRAME_SCALE_X[2],
+        )
+        self.assertGreater(moving_radius_x, idle_radius_x)
 
     def test_inspectable_props_are_rendered_as_sprites_outside_collision_solids(self) -> None:
         renderer = Renderer.create()

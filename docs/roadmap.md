@@ -179,6 +179,8 @@ RIV014.5C:
 - Current first pass: player state now records `walk_phase` and
   `last_move_distance`; sprite frames advance from real X/Z movement, and a
   small floor-projected shadow anchors the character to the stage.
+- Current shadow pass: the player shadow is a floor-aligned projected ellipse
+  with subtle scale changes synchronized to the sprite walk frame.
 
 ## RIV016: Collision Strengthening
 
