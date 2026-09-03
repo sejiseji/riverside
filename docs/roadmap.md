@@ -180,8 +180,10 @@ RIV014.5C:
 - Split background profiles if needed:
   - A/B: inland-facing background.
   - C: river-facing background.
-- Keep painter sorting stable by line depth, route depth, camera depth, and
-  object id.
+- Keep solid-face painter sorting stable by the existing line, route, camera
+  depth, and object-id keys.
+- Keep player, prop, and environment billboard sprites sorted by contact-point
+  camera depth and stable object id.
 
 ## RIV018: Mobile Input Polish
 
