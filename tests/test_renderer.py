@@ -43,6 +43,7 @@ from three_line_explorer.renderer import (
     _face_sort_depth,
     _object_sort_depths,
     _render_sprite_sort_key,
+    _sprite_anchor_from_draw_origin,
     make_player_shadow_face,
     render_scene_bounds,
 )
@@ -214,9 +215,10 @@ class RendererTests(TestCase):
         player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
         min_x, _, max_x, max_y = _projected_bounds(shadow.points)
         shadow_center_x = (min_x + max_x) * 0.5
+        foot_x, foot_y = _sprite_anchor_from_draw_origin(player_sprite)
 
-        self.assertAlmostEqual(shadow_center_x, player_sprite.anchor.x, delta=1.0)
-        self.assertAlmostEqual(max_y, player_sprite.anchor.y, delta=2.0)
+        self.assertAlmostEqual(shadow_center_x, foot_x, delta=1.0)
+        self.assertAlmostEqual(max_y, foot_y, delta=1.0)
 
     def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
         player = create_player()

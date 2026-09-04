@@ -89,8 +89,9 @@ River:
   `pyxel.frame_count`.
 - Turn-in-place, reading panels, and blocked frames keep the sprite on an idle
   frame because `last_move_distance` is zero.
-- A small player shadow is drawn as a screen-space ellipse from the projected
-  sprite foot anchor before solid and sprite rendering.
+- A small player shadow is drawn as a screen-space ellipse derived from the
+  final player sprite draw origin, so the shadow follows sprite scale and anchor
+  rounding.
 - The shadow uses the current sprite walk frame to apply subtle width/depth
   scale changes, and uses the same camera-distance scale as the player sprite.
 - The player sprite uses camera-distance scaling instead of a fixed 1x draw:
