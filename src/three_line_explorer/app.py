@@ -21,8 +21,13 @@ from three_line_explorer.config import (
     INSPECTION_BODY_FONT_SIZE,
     INSPECTION_TEXT_MAX_LINES,
     INSPECTION_TEXT_MAX_WIDTH,
+    PLAYER_SIZE_Y,
     SCREEN_H,
     SCREEN_W,
+    VIEWPORT_H,
+    VIEWPORT_W,
+    VIEWPORT_X,
+    VIEWPORT_Y,
 )
 from three_line_explorer.debug_hud import draw_debug_hud, draw_ui
 from three_line_explorer.input import InputAdapter, StickBasis
@@ -45,6 +50,12 @@ from three_line_explorer.inspection_content_registry import (
     InspectionContentKind,
 )
 from three_line_explorer.inspection_texts import INSPECTION_TEXTS
+from three_line_explorer.math3d import Vec3
+from three_line_explorer.owner_memory_bubble_sprites import (
+    animation_frame_index,
+    build_owner_memory_bubble_atlas,
+    draw_owner_memory_bubble,
+)
 from three_line_explorer.player import (
     PlayerState,
     create_player,
@@ -55,6 +66,7 @@ from three_line_explorer.player import (
     warp_player_near_left,
     warp_player_near_right,
 )
+from three_line_explorer.projection import project_world_point
 from three_line_explorer.renderer import RenderStats, Renderer
 from three_line_explorer.stage import (
     CameraRule,
@@ -103,6 +115,9 @@ class App:
         self.director = CameraDirector()
         self.input = InputAdapter()
         self.renderer = Renderer.create()
+        self.owner_memory_atlas = build_owner_memory_bubble_atlas(pyxel)
+        self.owner_memory_elapsed = 0
+        self.owner_memory_visible = False
         self.active_rule, self.active_rule_label = self.stage.active_camera_rule(
             self.player.x,
             self.player.target_lane_index,
@@ -163,6 +178,8 @@ class App:
         self.story_progress = StoryProgressState()
         self.active_story_prop_key = None
         self._apply_story_prop(None)
+        self.owner_memory_elapsed = 0
+        self.owner_memory_visible = False
         self.last_rendered_camera_snapshot = self._initial_snapshot()
         self.last_rendered_prompt = None
 
@@ -205,6 +222,8 @@ class App:
                 closed_text_key = advance_or_close_inspection(self.interaction)
                 if closed_text_key is not None:
                     self._handle_inspection_closed(closed_text_key)
+            if self.interaction.panel_open and self.owner_memory_visible:
+                self.owner_memory_elapsed += 1
             self.camera.update(DT)
             return
 
@@ -254,10 +273,19 @@ class App:
             return
         if not can_open_prop(player_bounds_at(self.player.x, self.player.z), prop):
             return
-        open_inspection(self.interaction, prop, self.inspection_text_cache)
+        if open_inspection(self.interaction, prop, self.inspection_text_cache):
+            metadata = CONTENT_METADATA.get(prop.text_key)
+            self.owner_memory_elapsed = 0
+            self.owner_memory_visible = (
+                metadata is not None
+                and metadata.kind
+                in {InspectionContentKind.OWNER_LETTER, InspectionContentKind.MEMORY_ECHO}
+            )
 
     def _handle_inspection_closed(self, text_key: str) -> None:
         metadata = CONTENT_METADATA.get(text_key)
+        self.owner_memory_visible = False
+        self.owner_memory_elapsed = 0
         if metadata is None:
             return
         if metadata.kind is InspectionContentKind.AMBIENT:
@@ -339,6 +367,8 @@ class App:
         if not self.interaction.panel_open:
             prompt = self._draw_active_inspection_prompt(snapshot)
             self.last_rendered_prompt = prompt
+        elif self.owner_memory_visible:
+            self._draw_owner_memory_bubble(snapshot)
 
         draw_ui(
             pyxel,
@@ -380,6 +410,23 @@ class App:
             return None
         draw_inspection_prompt(self.pyxel, prompt)
         return prompt
+
+    def _draw_owner_memory_bubble(self, snapshot: CameraSnapshot) -> None:
+        head = project_world_point(
+            snapshot,
+            Vec3(self.player.x, PLAYER_SIZE_Y + 5.0, self.player.z),
+        )
+        if head is None:
+            return
+        pyxel = self.pyxel
+        pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
+        draw_owner_memory_bubble(
+            self.owner_memory_atlas,
+            frame_index=animation_frame_index(self.owner_memory_elapsed),
+            cat_head_screen_x=head.x,
+            cat_head_screen_y=head.y,
+        )
+        pyxel.clip()
 
 
 def main() -> None:

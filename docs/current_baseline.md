@@ -30,6 +30,8 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - RIV013 drift content is split into ambient debris, owner letters, and memory
   echoes. Story drift items are fixed-order and advance only when their panel is
   closed after the final page.
+- Owner-letter and memory-echo panels show a four-frame owner memory bubble
+  projected from the player's head position.
 
 ## Screen
 
@@ -145,6 +147,7 @@ Pointer:
   - `drift_item_randomizer.py`: weighted ambient item selection
   - `drift_item_sprites.py`: 100 source-defined Pyxel color-map prop sprites
   - `inspection_prop_sprites.py`: compatibility wrapper for the 100-slot prop atlas
+  - `owner_memory_bubble_sprites.py`: four-frame owner recollection bubble
   - `text_layout.py`: measured wrapping, kinsoku handling, page splitting, cache
   - `ui_fonts.py`: bundled font loading
 - Data type: `InspectableProp`
@@ -164,6 +167,12 @@ Pointer:
 - Existing camera transitions continue while the panel is open
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
+- Owner memory bubble display: enabled only for `OWNER_LETTER` and
+  `MEMORY_ECHO`, not normal ambient drift items.
+- Owner memory bubble timing: reset to frame 0 when the panel opens, then uses
+  panel-local elapsed frames while the panel remains open.
+- Owner memory bubble anchor: `Vec3(player.x, PLAYER_SIZE_Y + 5.0, player.z)`
+  projected through the current camera.
 - Current text is Japanese RIV013 content plus stage-local text.
 - Current content registry: 86 ambient drift items, 8 owner letters, 6 memory
   echoes, plus stage-local `weathered_forest_sign`.
@@ -223,6 +232,12 @@ Pointer:
 - Environment sprite atlas: world scenery sprites generated once at runtime
 - Environment sprite helper: `src/three_line_explorer/environment_sprites.py`
 - Parallax helper: `src/three_line_explorer/parallax.py`
+- Owner memory bubble source: `src/three_line_explorer/owner_memory_bubble_sprites.py`
+- Owner memory bubble frames: 4 x 64x64
+- Owner memory bubble atlas: 256x64, generated once after `pyxel.init`
+- Owner memory bubble transparent color: Pyxel color 2
+- Owner memory bubble draw anchor: X=32, Y=62
+- Owner memory bubble loop: 0, 1, 2, 3, 2, 1 with 8-frame holds
 - Parallax layers: FAR 64x32 x4, MID 64x48 x4, NEAR 64x64 x4
 - Parallax sequence: `a -> b -> c -> d`, repeated per layer
 - Parallax scroll: `player.x * camera_snapshot.right.x` converted to a

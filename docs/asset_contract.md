@@ -195,3 +195,33 @@ WorldSpriteSpec(
 World environment sprites are not converted into visible AABB solids. When a
 sprite is collidable, its collision footprint is registered separately and used
 only by player movement.
+
+## Owner Memory Bubble
+
+```text
+Purpose: owner recollection visual shown above the player during story panels
+Storage: source-defined Pyxel color maps
+Frame size: 64x64 px
+Frame count: 4
+Atlas size: 256x64 px
+Transparent color: Pyxel color 2
+Source transparent char: .
+Visible color rule: color 2 cannot be used as visible pixels in this asset
+Anchor: x=32, y=62
+Loop: 0, 1, 2, 3, 2, 1
+Frame hold: 8 game frames
+Display policy: OWNER_LETTER and MEMORY_ECHO panels only
+```
+
+GPT handoff prompt:
+
+```text
+Create a riverside owner-memory bubble as Pyxel color-index maps.
+Return 4 frames.
+Each frame must be exactly 64 rows, each exactly 64 characters.
+Use . as transparent and Pyxel color 2 as transparent_color.
+Do not use visible color 2 in this asset.
+No anti-aliasing, semi-transparency, blur, or extra whitespace.
+Keep the lower-center puff near anchor (32, 62) so it attaches to the player's head.
+The animation should loop as 0, 1, 2, 3, 2, 1 with gentle motion.
+```

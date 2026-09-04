@@ -47,6 +47,8 @@ GitHub Pages `.pyxapp` publishing.
   A-R mapping until the final area table exists.
 - Story items persist until read and advance only after the final inspection
   panel page closes.
+- Owner-letter and memory-echo panels now trigger a four-frame owner memory
+  bubble above the player; normal ambient drift items do not.
 
 ## RIV014: Riverside Stage Composition
 
