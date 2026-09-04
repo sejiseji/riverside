@@ -41,7 +41,7 @@ GitHub Pages `.pyxapp` publishing.
   `.` as transparent authoring char, palette index 8 as the prop
   `transparent_color`, and no visible use of color `8` inside those prop assets.
 - Keep prop text and prop placement separate through `text_key`.
-- Prototype placement currently uses seven fixed riverside drift props; RIV014
+- Prototype placement currently uses nine fixed riverside drift props; RIV014
   should replace that with area-based placement slots.
 - Story progression is connected but uses a temporary route-start-to-stage-end
   A-R mapping until the final area table exists.
@@ -151,7 +151,7 @@ RIV014.5B:
   rises from the stage edge instead of sitting as a fixed screen-space band.
 - Extend the floor, river, and world render candidates with a render-only scene
   margin so stage edges and object pop-in occur off-screen where possible.
-- Use camera basis for scroll direction so A/B/C and camera transitions remain
+- Use camera basis for scroll direction so A/B/C/D and camera transitions remain
   continuous.
 - Add a debug toggle for background visibility.
 
@@ -175,7 +175,7 @@ RIV014.5C:
 - Floor/river left-right edges and solid visibility changes are pushed outside
   the viewport by render-only bounds, without expanding gameplay collision or
   walkable space.
-- A/B/C cameras do not reverse the parallax direction incorrectly.
+- A/B/C/D cameras do not reverse the parallax direction incorrectly.
 - Camera transitions do not cause instant background flips.
 - Horizon follows camera elevation smoothly.
 - Background never draws into top or bottom UI areas.
@@ -202,9 +202,9 @@ RIV014.5C:
 
 ## RIV017: Camera and Draw-Order Polish
 
-- Recheck sprite and solid draw order in all three shots.
+- Recheck sprite and solid draw order in all four shots.
 - Split background profiles if needed:
-  - A/B: inland-facing background.
+  - A/B/D: inland-facing background.
   - C: river-facing background.
 - Keep solid-face painter sorting stable by the existing line, route, camera
   depth, and object-id keys.

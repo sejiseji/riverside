@@ -50,3 +50,14 @@ class ProjectionCameraTests(TestCase):
             camera_point = world_to_camera(snapshot, snapshot.pivot)
             self.assertTrue(isfinite(camera_point.z))
             self.assertGreater(camera_point.z, 0.0)
+
+    def test_right_side_wide_shot_stays_on_right_side(self) -> None:
+        snapshot = make_camera_snapshot(
+            CAMERA_SHOTS[CameraShotId.RIGHT_SIDE_WIDE],
+            0.0,
+            0.0,
+            shot_id=CameraShotId.RIGHT_SIDE_WIDE,
+        )
+
+        self.assertGreater(snapshot.position.z, snapshot.pivot.z)
+        self.assertLess(abs(snapshot.position.x - snapshot.pivot.x), 40.0)

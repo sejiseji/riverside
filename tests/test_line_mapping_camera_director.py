@@ -24,23 +24,29 @@ class LineMappingTests(TestCase):
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
         shot_b = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.FRONT_RIGHT_CLOSE], player.x, player.z)
         shot_c = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW], player.x, player.z)
+        shot_d = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.RIGHT_SIDE_WIDE], player.x, player.z)
 
         a_lane_x = compute_lane_screen_x(shot_a, player.x)
         b_lane_x = compute_lane_screen_x(shot_b, player.x)
         c_lane_x = compute_lane_screen_x(shot_c, player.x)
+        d_lane_x = compute_lane_screen_x(shot_d, player.x)
         a_lane_y = compute_lane_screen_y(shot_a, player.x)
         b_lane_y = compute_lane_screen_y(shot_b, player.x)
         c_lane_y = compute_lane_screen_y(shot_c, player.x)
+        d_lane_y = compute_lane_screen_y(shot_d, player.x)
 
         self.assertGreater(a_lane_x[2] - a_lane_x[0], 0.0)
         self.assertLess(b_lane_x[2] - b_lane_x[0], 0.0)
         self.assertGreater(c_lane_x[2] - c_lane_x[0], 0.0)
+        self.assertGreater(d_lane_x[2] - d_lane_x[0], 0.0)
         self.assertGreater(a_lane_y[2] - a_lane_y[0], 0.0)
         self.assertGreater(b_lane_y[2] - b_lane_y[0], 0.0)
         self.assertLess(c_lane_y[2] - c_lane_y[0], 0.0)
+        self.assertGreater(d_lane_y[2] - d_lane_y[0], 0.0)
         self.assertGreater(compute_move_screen_x_delta(shot_a, player.x, player.z), 0.0)
         self.assertGreater(compute_move_screen_x_delta(shot_b, player.x, player.z), 0.0)
         self.assertLess(compute_move_screen_x_delta(shot_c, player.x, player.z), 0.0)
+        self.assertGreater(compute_move_screen_x_delta(shot_d, player.x, player.z), 0.0)
 
     def test_horizontal_move_mapping_uses_hysteresis(self) -> None:
         self.assertEqual(update_stable_move_orientation(1, 20.0), 1)
@@ -87,8 +93,12 @@ class CameraDirectorTests(TestCase):
         stage = Stage.create_prototype()
         director = CameraDirector()
         rule, label = stage.active_camera_rule(-200.0, 1)
-        self.assertEqual(label, "ALLOW_A_C")
+        self.assertEqual(label, "ALLOW_A_C_D")
         self.assertEqual(
             director.resolve(rule, CameraShotId.FRONT_RIGHT_CLOSE, CameraShotId.REAR_RIGHT_LOW),
             CameraShotId.REAR_RIGHT_LOW,
+        )
+        self.assertEqual(
+            director.resolve(rule, CameraShotId.RIGHT_SIDE_WIDE, CameraShotId.REAR_RIGHT_LOW),
+            CameraShotId.RIGHT_SIDE_WIDE,
         )

@@ -9,7 +9,7 @@ from three_line_explorer.config import (
     STICK_LANE_REPEAT_DELAY_SECONDS,
     STICK_LANE_STEP_PX,
 )
-from three_line_explorer.input import InputAdapter, StickBasis
+from three_line_explorer.input import InputAdapter, StickBasis, next_camera_shot
 from three_line_explorer.inspection import PromptSnapshot, ScreenRect, panel_rect
 
 
@@ -23,6 +23,7 @@ class FakePyxel:
     KEY_1: int = 6
     KEY_2: int = 7
     KEY_3: int = 8
+    KEY_4: int = 23
     KEY_C: int = 9
     KEY_W: int = 10
     KEY_S: int = 11
@@ -236,6 +237,25 @@ class InputAdapterTests(TestCase):
         pyxel.pointer_release(60, 18)
         intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
         self.assertEqual(intent.requested_camera, CameraShotId.FRONT_RIGHT_CLOSE)
+
+    def test_number_4_requests_right_side_wide_camera(self) -> None:
+        adapter = InputAdapter()
+        pyxel = FakePyxel()
+        pyxel.pressed = {pyxel.KEY_4}
+
+        intent = adapter.read(pyxel, CameraShotId.REAR_RIGHT_LOW, DT)
+
+        self.assertEqual(intent.requested_camera, CameraShotId.RIGHT_SIDE_WIDE)
+
+    def test_cycle_camera_includes_right_side_wide_camera(self) -> None:
+        self.assertEqual(
+            next_camera_shot(CameraShotId.REAR_LEFT_SHALLOW),
+            CameraShotId.RIGHT_SIDE_WIDE,
+        )
+        self.assertEqual(
+            next_camera_shot(CameraShotId.RIGHT_SIDE_WIDE),
+            CameraShotId.REAR_RIGHT_LOW,
+        )
 
     def test_prompt_tap_requests_inspection_without_starting_stick(self) -> None:
         adapter = InputAdapter()

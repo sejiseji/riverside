@@ -98,13 +98,17 @@ class Stage:
                 lane_mask=ALL_LANE_MASK,
                 rule=CameraRule(
                     allowed_shots=frozenset(
-                        {CameraShotId.REAR_RIGHT_LOW, CameraShotId.REAR_LEFT_SHALLOW}
+                        {
+                            CameraShotId.REAR_RIGHT_LOW,
+                            CameraShotId.REAR_LEFT_SHALLOW,
+                            CameraShotId.RIGHT_SIDE_WIDE,
+                        }
                     ),
                     manual_enabled=True,
                     forced_shot=None,
                     priority=10,
                 ),
-                label="ALLOW_A_C",
+                label="ALLOW_A_C_D",
             ),
         )
         stage = cls(
@@ -312,6 +316,7 @@ def _create_prototype_solids() -> list[AabbSolid]:
     add((220.0, 0.0, -6.0), (232.0, 50.0, 6.0), 8, 10)
 
     add((STAGE_MIN_X, 0.0, -60.0), (STAGE_MIN_X + 10.0, 100.0, -50.0), 7, 6)
+    add((STAGE_MAX_X - 10.0, 0.0, -60.0), (STAGE_MAX_X, 100.0, -50.0), 7, 6)
     return solids
 
 
@@ -324,6 +329,8 @@ def _create_prototype_inspectable_props() -> list[InspectableProp]:
         ("yellow_name_tag", -306.0),
         ("stopped_watch", -142.0),
         ("chipped_mug", 346.0),
+        ("bent_spoon", 520.0),
+        ("child_rain_boot", 642.0),
     )
     props = [
         _drift_prop(
@@ -406,6 +413,9 @@ def _create_prototype_environment_sprites() -> list[EnvironmentSpriteInstance]:
         env(8, "butterbur", 152.0, -54.0),
         env(9, "horsetail", 252.0, -50.0),
         env(10, "sapling", 410.0, -55.0),
+        env(11, "grass_tuft", 548.0, -51.0),
+        env(12, "mossy_rock", 604.0, -24.0),
+        env(13, "fern", 670.0, -52.0),
     ]
 
 

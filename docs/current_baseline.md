@@ -9,7 +9,7 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - The river is visual space on the +Z side, not an extra walkable lane.
 - Player position is stored as the contact-point center.
 - Forward/back movement and lane movement both require the player to face the target direction first.
-- Camera shots A/B/C are stage-fixed shots, independent of player facing.
+- Camera shots A/B/C/D are stage-fixed shots, independent of player facing.
 - Camera transitions do not stop normal movement or lane input.
 - Visible volume, collision, and solid rendering are based on AABBs.
 - The logical visible volume remains the gameplay clamp, while the renderer
@@ -51,7 +51,7 @@ Future implementation order is tracked in `docs/roadmap.md`.
 
 Stage bounds:
 
-- X: -480 .. +480
+- X: -720 .. +720
 - Y: 0 .. 100
 - Z: -60 .. +180
 
@@ -106,6 +106,7 @@ Shots:
 - A: `REAR_RIGHT_LOW`, azimuth 110, elevation 12, distance 640
 - B: `FRONT_RIGHT_CLOSE`, azimuth 70, elevation 14, distance 520
 - C: `REAR_LEFT_SHALLOW`, azimuth 240, elevation 6, distance 700
+- D: `RIGHT_SIDE_WIDE`, azimuth 92, elevation 8, distance 760
 
 ## Input
 
@@ -115,7 +116,7 @@ Keyboard:
 - `Right` / `D`: move along route toward screen-right.
 - `Up` / `W`: request lane movement toward screen-up.
 - `Down` / `S`: request lane movement toward screen-down.
-- `1`, `2`, `3`: request camera A/B/C.
+- `1`, `2`, `3`, `4`: request camera A/B/C/D.
 - `C`: cycle camera.
 - `H`: toggle debug HUD.
 - `B`: toggle visible bounds.
@@ -176,7 +177,7 @@ Pointer:
 - Current text is Japanese RIV013 content plus stage-local text.
 - Current content registry: 86 ambient drift items, 8 owner letters, 6 memory
   echoes, plus stage-local `weathered_forest_sign`.
-- Current prototype placed targets: seven riverside drift props plus the inland
+- Current prototype placed targets: nine riverside drift props plus the inland
   weathered sign.
 - Story area progress is currently mapped from the prototype route start
   (`PLAYER_START_X`) toward `STAGE_MAX_X`; RIV014 can replace this with the
@@ -243,7 +244,7 @@ Pointer:
 - Parallax scroll: `player.x * camera_snapshot.right.x` converted to a
   layer-specific world offset
 - Parallax placement: layers stand just beyond the far Z edge of the current
-  expanded scene render bounds, with A/B using the inland edge and C using the river edge
+  expanded scene render bounds, with A/B/D using the inland edge and C using the river edge
 - Parallax projection: each tile is a bottom-anchored billboard whose contact
   point is projected through the current camera
 

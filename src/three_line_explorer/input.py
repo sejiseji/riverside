@@ -19,6 +19,7 @@ CAMERA_BUTTON_RECTS: tuple[tuple[int, int, int, int, CameraShotId], ...] = (
     (12, 10, 34, 26, CameraShotId.REAR_RIGHT_LOW),
     (52, 10, 34, 26, CameraShotId.FRONT_RIGHT_CLOSE),
     (92, 10, 34, 26, CameraShotId.REAR_LEFT_SHALLOW),
+    (132, 10, 34, 26, CameraShotId.RIGHT_SIDE_WIDE),
 )
 
 
@@ -271,6 +272,8 @@ class InputAdapter:
             requested_camera = CameraShotId.FRONT_RIGHT_CLOSE
         elif _btnp(pyxel, "KEY_3"):
             requested_camera = CameraShotId.REAR_LEFT_SHALLOW
+        elif _btnp(pyxel, "KEY_4"):
+            requested_camera = CameraShotId.RIGHT_SIDE_WIDE
         elif _btnp(pyxel, "KEY_C"):
             requested_camera = next_camera_shot(current_camera)
 

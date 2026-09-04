@@ -7,6 +7,8 @@ from three_line_explorer.config import (
     PLAYER_SIZE_Z,
     PLAYER_START_X,
     RIVER_START_Z,
+    STAGE_MAX_X,
+    STAGE_MIN_X,
     STAGE_MAX_Z,
     STAGE_MIN_Z,
     VISIBLE_SIZE_Z,
@@ -59,6 +61,11 @@ class StageLayoutTests(TestCase):
         self.assertLessEqual(len(stage.solids), 12)
         self.assertLessEqual(len(stage.inspectable_props), 10)
 
+    def test_prototype_stage_is_extended_for_long_route(self) -> None:
+        self.assertEqual(STAGE_MIN_X, -720.0)
+        self.assertEqual(STAGE_MAX_X, 720.0)
+        self.assertEqual(STAGE_MAX_X - STAGE_MIN_X, 1440.0)
+
     def test_story_area_index_starts_from_player_route_start(self) -> None:
         self.assertEqual(story_area_index_for_x(PLAYER_START_X), 0)
-        self.assertEqual(story_area_index_for_x(480.0), 17)
+        self.assertEqual(story_area_index_for_x(STAGE_MAX_X), 17)

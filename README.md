@@ -19,7 +19,8 @@ Prototype controls:
 
 - Keyboard: `Left` / `A` and `Right` / `D` move along the route in screen space.
   `Up` / `W` and `Down` / `S` change the target lane in screen space.
-  `H` toggles the debug HUD, `B` toggles bounds, and `L` toggles lane guides.
+  `1`-`4` request camera shots A-D. `H` toggles the debug HUD, `B` toggles bounds,
+  and `L` toggles lane guides.
 - Touch / pointer: tap the camera buttons, or drag anywhere else as a virtual direction stick.
   Horizontal drag moves along the route, and vertical drag changes lanes. Camera changes update
   the screen-space mapping from the last rendered camera state.
@@ -51,8 +52,8 @@ src/three_line_explorer/inspection_prop_sprites.py
 
 Each prop sprite is authored as 32x24 rows of Pyxel palette digits. `.` is
 converted to transparent color `8` when the runtime atlas is built, so visible
-prop pixels must not use color `8`. The current atlas contains the single
-sandal, clouded bottle, and driftwood sprites.
+prop pixels must not use color `8`. The current atlas contains 100 RIV013 drift
+item sprites.
 
 Japanese font:
 

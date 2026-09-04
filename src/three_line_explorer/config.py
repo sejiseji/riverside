@@ -19,8 +19,8 @@ VIEWPORT_H = SCREEN_H - TOP_UI_HEIGHT - BOTTOM_UI_HEIGHT
 GROUND_Y = 0.0
 WORLD_UP_Y = 1.0
 
-STAGE_MIN_X = -480.0
-STAGE_MAX_X = 480.0
+STAGE_MIN_X = -720.0
+STAGE_MAX_X = 720.0
 STAGE_MIN_Y = 0.0
 STAGE_MAX_Y = 100.0
 STAGE_MIN_Z = -60.0
@@ -75,6 +75,7 @@ class CameraShotId(IntEnum):
     REAR_RIGHT_LOW = 0
     FRONT_RIGHT_CLOSE = 1
     REAR_LEFT_SHALLOW = 2
+    RIGHT_SIDE_WIDE = 3
 
 
 INITIAL_CAMERA = CameraShotId.REAR_RIGHT_LOW
@@ -102,6 +103,12 @@ CAMERA_SHOT_SPECS = {
         radians(240.0),
         radians(6.0),
         700.0,
+        CAMERA_TARGET_Y,
+    ),
+    CameraShotId.RIGHT_SIDE_WIDE: (
+        radians(92.0),
+        radians(8.0),
+        760.0,
         CAMERA_TARGET_Y,
     ),
 }

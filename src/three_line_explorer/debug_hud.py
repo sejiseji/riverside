@@ -43,9 +43,9 @@ def draw_ui(
         pyxel.rectb(rect_x, rect_y, rect_w, rect_h, palette.UI_TEXT)
         pyxel.text(rect_x + 13, rect_y + 9, camera_button_label(shot_id), palette.UI_TEXT)
 
-    pyxel.text(140, 13, f"CAM {camera_button_label(active_camera)} {active_rule_label}", palette.UI_TEXT)
+    pyxel.text(180, 13, f"CAM {camera_button_label(active_camera)} {active_rule_label}", palette.UI_TEXT)
     flags = f"H:{int(debug_visible)} B:{int(show_volume)} L:{int(show_lanes)}"
-    pyxel.text(140, 28, flags, palette.UI_MUTED)
+    pyxel.text(180, 28, flags, palette.UI_MUTED)
 
     if bottom_controls_visible:
         _draw_virtual_stick(
