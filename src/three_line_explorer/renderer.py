@@ -26,6 +26,9 @@ from three_line_explorer.config import (
     PLAYER_SHADOW_SIZE_X,
     PLAYER_SHADOW_SIZE_Z,
     PLAYER_SHADOW_Y,
+    PLAYER_SPRITE_MAX_SCALE,
+    PLAYER_SPRITE_MIN_SCALE,
+    PLAYER_SPRITE_WORLD_WIDTH,
     RenderLayer,
     RIVER_OBJECT_ID,
     RIVER_START_Z,
@@ -297,6 +300,17 @@ class Renderer:
 
         lane_depth, route_depth = _object_sort_depths(anchor_world, snapshot)
         image_bank, u, v, w, h = player_sprite_source(player, frame_count)
+        scale = calculate_sprite_scale(
+            snapshot.focal_px,
+            camera_point.z,
+            PLAYER_SPRITE_WORLD_WIDTH,
+            w,
+            minimum=PLAYER_SPRITE_MIN_SCALE,
+            maximum=PLAYER_SPRITE_MAX_SCALE,
+        )
+        if scale <= 0.0:
+            return
+
         self.render_sprites.append(
             RenderSprite(
                 layer=RenderLayer.SOLID,
@@ -312,7 +326,7 @@ class Renderer:
                 h=h,
                 anchor_offset_x=PLAYER_SPRITE_ANCHOR_X,
                 anchor_offset_y=PLAYER_SPRITE_ANCHOR_Y,
-                scale=1.0,
+                scale=scale,
                 colkey=PLAYER_SPRITE_TRANSPARENT_COLOR,
             )
         )

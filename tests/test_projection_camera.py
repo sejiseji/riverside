@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import isfinite
+from math import isfinite, radians
 from unittest import TestCase
 
 from three_line_explorer.camera import (
@@ -89,5 +89,6 @@ class ProjectionCameraTests(TestCase):
         self.assertLess(final.distance, blended.distance)
         self.assertEqual(final.distance, LEFT_EDGE_CAMERA_TARGET_DISTANCE)
         self.assertNotEqual(blended.azimuth, base.azimuth)
+        self.assertLess(final.azimuth - base.azimuth, radians(20.0))
         self.assertGreater(final_snapshot.position.z, final_snapshot.pivot.z)
         self.assertGreater(compute_move_screen_x_delta(final_snapshot, STAGE_MIN_X, 0.0), 0.0)

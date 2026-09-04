@@ -3,7 +3,11 @@ from __future__ import annotations
 from unittest import TestCase
 
 from three_line_explorer import palette
-from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
+from three_line_explorer.camera import (
+    CAMERA_SHOTS,
+    apply_left_edge_camera_blend,
+    make_camera_snapshot,
+)
 from three_line_explorer.config import (
     ENVIRONMENT_OBJECT_ID_BASE,
     FLOOR_OBJECT_ID,
@@ -13,9 +17,12 @@ from three_line_explorer.config import (
     PLAYER_SHADOW_FRAME_SCALE_X,
     PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
+    PLAYER_SPRITE_MAX_SCALE,
+    PLAYER_SPRITE_MIN_SCALE,
     RIVER_OBJECT_ID,
     SCENE_RENDER_FAR_MARGIN_Z,
     SCENE_RENDER_MARGIN_X,
+    STAGE_MIN_X,
     CameraShotId,
     RenderLayer,
 )
@@ -148,6 +155,39 @@ class RendererTests(TestCase):
         self.assertEqual(player_sprite.anchor_offset_y, PLAYER_SPRITE_ANCHOR_Y)
         self.assertEqual(shadow.fill_color, palette.PLAYER_SHADOW)
         self.assertEqual(len(shadow.points), PLAYER_SHADOW_SEGMENTS)
+
+    def test_player_sprite_scale_tracks_camera_distance(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        stage = Stage(solids=(), zones=())
+
+        far_snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            far_snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+        far_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+
+        player.x = STAGE_MIN_X
+        near_params = apply_left_edge_camera_blend(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x)
+        near_snapshot = make_camera_snapshot(near_params, player.x, player.z)
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            near_snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+        near_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+
+        self.assertGreater(near_sprite.scale, far_sprite.scale)
+        self.assertGreaterEqual(far_sprite.scale, PLAYER_SPRITE_MIN_SCALE)
+        self.assertLessEqual(near_sprite.scale, PLAYER_SPRITE_MAX_SCALE)
 
     def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
         player = create_player()

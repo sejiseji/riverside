@@ -93,6 +93,9 @@ River:
   and sprite rendering.
 - The shadow uses the current sprite walk frame to apply subtle width/depth
   scale changes.
+- The player sprite uses camera-distance scaling instead of a fixed 1x draw:
+  world width 26, clamped to 0.85 .. 1.65. Close camera shots therefore make
+  the cat visibly larger while keeping the same sprite source.
 
 ## Camera
 
@@ -110,10 +113,11 @@ Shots:
 - Stage forced B zone: X=140 .. `STAGE_MAX_X`, manual camera switching disabled
   while inside.
 - Left-edge camera blend: from X=-260 toward `STAGE_MIN_X`, the rendered camera
-  parameters are position-blended toward azimuth 165, elevation 7, distance 410.
-  The target stays on the +Z side so route-left remains screen-left at the edge.
-  This is applied after the active shot transition, so normal shot IDs and
-  input mapping still use the rendered camera snapshot.
+  parameters are position-blended toward azimuth 125, elevation 7, distance 340.
+  The target only shifts 15 degrees from shot A and stays on the +Z side, so
+  route-left remains screen-left while the main effect is zooming toward the cat.
+  This is applied after the active shot transition, so normal shot IDs and input
+  mapping still use the rendered camera snapshot.
 
 ## Input
 
