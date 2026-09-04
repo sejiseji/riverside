@@ -82,7 +82,7 @@ class Stage:
         zones = (
             CameraZone(
                 x_min=140.0,
-                x_max=220.0,
+                x_max=STAGE_MAX_X,
                 lane_mask=ALL_LANE_MASK,
                 rule=CameraRule(
                     allowed_shots=ALL_CAMERA_SHOTS,

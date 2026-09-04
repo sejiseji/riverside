@@ -12,7 +12,7 @@ from three_line_explorer.camera import (
     update_stable_move_orientation,
 )
 from three_line_explorer.camera_director import CameraDirector
-from three_line_explorer.config import CameraShotId
+from three_line_explorer.config import CameraShotId, STAGE_MAX_X
 from three_line_explorer.player import create_player
 from three_line_explorer.stage import Stage
 
@@ -88,6 +88,14 @@ class CameraDirectorTests(TestCase):
 
         restored = director.resolve(default_rule, None, CameraShotId.FRONT_RIGHT_CLOSE)
         self.assertEqual(restored, CameraShotId.REAR_LEFT_SHALLOW)
+
+    def test_forced_front_right_zone_extends_to_stage_right_edge(self) -> None:
+        stage = Stage.create_prototype()
+        rule, label = stage.active_camera_rule(STAGE_MAX_X, 1)
+
+        self.assertEqual(label, "FORCED_B")
+        self.assertEqual(rule.forced_shot, CameraShotId.FRONT_RIGHT_CLOSE)
+        self.assertFalse(rule.manual_enabled)
 
     def test_allowed_zone_excludes_front_right_close(self) -> None:
         stage = Stage.create_prototype()

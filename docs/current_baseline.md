@@ -107,6 +107,8 @@ Shots:
 - B: `FRONT_RIGHT_CLOSE`, azimuth 70, elevation 14, distance 520
 - C: `REAR_LEFT_SHALLOW`, azimuth 240, elevation 6, distance 700
 - D: `RIGHT_SIDE_WIDE`, azimuth 92, elevation 8, distance 760
+- Stage forced B zone: X=140 .. `STAGE_MAX_X`, manual camera switching disabled
+  while inside.
 
 ## Input
 
