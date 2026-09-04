@@ -6,6 +6,7 @@ from unittest import TestCase
 from three_line_explorer.camera import (
     CAMERA_SHOTS,
     apply_left_edge_camera_blend,
+    compute_move_screen_x_delta,
     left_edge_camera_blend_factor,
     make_camera_snapshot,
 )
@@ -82,8 +83,11 @@ class ProjectionCameraTests(TestCase):
         mid_x = (LEFT_EDGE_CAMERA_BLEND_START_X + STAGE_MIN_X) * 0.5
         blended = apply_left_edge_camera_blend(base, mid_x)
         final = apply_left_edge_camera_blend(base, STAGE_MIN_X)
+        final_snapshot = make_camera_snapshot(final, STAGE_MIN_X, 0.0)
 
         self.assertLess(blended.distance, base.distance)
         self.assertLess(final.distance, blended.distance)
         self.assertEqual(final.distance, LEFT_EDGE_CAMERA_TARGET_DISTANCE)
         self.assertNotEqual(blended.azimuth, base.azimuth)
+        self.assertGreater(final_snapshot.position.z, final_snapshot.pivot.z)
+        self.assertGreater(compute_move_screen_x_delta(final_snapshot, STAGE_MIN_X, 0.0), 0.0)
