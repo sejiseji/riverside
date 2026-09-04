@@ -21,8 +21,8 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - Stage camera zones can force or restrict camera shots.
 - Inspectable riverside props are non-collision objects with their own proximity and text data.
 - Inspection prompts are 2D UI markers projected from 3D anchor points.
-- Parallax scenery is drawn as source-defined tiles projected from the far
-  stage edge, before floor, river, solids, sprites, prompts, and UI.
+- Parallax scenery is drawn as source-defined 4-tile sequence strips projected
+  from the far stage edge, before floor, river, solids, sprites, prompts, and UI.
 - Environment world sprites use source-defined Pyxel color maps and share the
   same camera-side stage-order sort as player and prop sprites.
 - Environment sprite collision footprints are separate from their visual
@@ -252,13 +252,15 @@ Pointer:
 - Owner memory bubble draw anchor: X=32, Y=62
 - Owner memory bubble loop: 0, 1, 2, 3, 2, 1 with 8-frame holds
 - Parallax layers: FAR 64x32 x4, MID 64x48 x4, NEAR 64x64 x4
-- Parallax sequence: `a -> b -> c -> d`, repeated per layer
-- Parallax scroll: `player.x * camera_snapshot.right.x` converted to a
-  layer-specific world offset
+- Parallax sequence: `a -> b -> c -> d`, precomposed at runtime as a 256px
+  source strip per layer and repeated as that full strip.
+- Parallax scroll: current camera position X converted to a layer-specific
+  world offset.
 - Parallax placement: layers stand just beyond the far Z edge of the current
   expanded scene render bounds, with A/B/D using the inland edge and C using the river edge
-- Parallax projection: each tile is a bottom-anchored billboard whose contact
-  point is projected through the current camera
+- Parallax projection: each strip recomputes the needed world-X span from the
+  current camera, projects its left/right world edges, and derives draw scale
+  from those projected edges to keep strip seams stable through camera changes.
 
 ## Rendering Bounds
 

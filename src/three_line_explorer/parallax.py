@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import floor
+from math import floor, isfinite
 from typing import Any, Final
 
 from three_line_explorer import palette
@@ -19,9 +19,9 @@ from three_line_explorer.generated_environment_assets import (
     ParallaxLayer,
     validate_all_assets,
 )
-from three_line_explorer.math3d import AABB, Vec3, clamp
+from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.pixel_map_source import compile_pixel_rows
-from three_line_explorer.projection import project_camera_point, world_to_camera
+from three_line_explorer.projection import project_world_point
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,9 +43,19 @@ class ParallaxTileRegion:
 
 
 @dataclass(frozen=True, slots=True)
+class ParallaxSequenceRegion:
+    u: int
+    v: int
+    width: int
+    height: int
+    colkey: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class ParallaxAtlas:
     image: Any
     regions: dict[str, ParallaxTileRegion]
+    sequence_regions: dict[ParallaxLayer, ParallaxSequenceRegion]
     layer_tuning: dict[ParallaxLayer, ParallaxLayerTuning]
 
 
@@ -73,6 +83,10 @@ PARALLAX_LAYER_TUNING: Final[dict[ParallaxLayer, ParallaxLayerTuning]] = {
     ),
 }
 
+PARALLAX_VIEWPORT_MARGIN_X = 96
+PARALLAX_WORLD_SPAN_MARGIN_X = 96.0
+PARALLAX_STRIP_SCREEN_OVERLAP = 1
+
 
 def build_parallax_atlas(pyxel: Any | None = None) -> ParallaxAtlas:
     if pyxel is None:
@@ -93,11 +107,16 @@ def build_parallax_atlas(pyxel: Any | None = None) -> ParallaxAtlas:
     image.cls(8)
 
     regions: dict[str, ParallaxTileRegion] = {}
+    sequence_regions: dict[ParallaxLayer, ParallaxSequenceRegion] = {}
     layer_y = 0
     for layer in ParallaxLayer:
         sequence = PARALLAX_SEQUENCES[layer]
         x = 0
         layer_h = max(PARALLAX_TILES[asset_id].source.height for asset_id in sequence)
+        layer_colkeys = {
+            PARALLAX_TILES[asset_id].source.transparent_color
+            for asset_id in sequence
+        }
         for asset_id in sequence:
             source = PARALLAX_TILES[asset_id].source
             image.set(x, layer_y, compile_pixel_rows(source.rows, source.transparent_color))
@@ -109,11 +128,21 @@ def build_parallax_atlas(pyxel: Any | None = None) -> ParallaxAtlas:
                 colkey=source.transparent_color,
             )
             x += source.width
+        if len(layer_colkeys) != 1:
+            raise ValueError(f"parallax layer uses mixed transparent colors: {layer}")
+        sequence_regions[layer] = ParallaxSequenceRegion(
+            u=0,
+            v=layer_y,
+            width=x,
+            height=layer_h,
+            colkey=next(iter(layer_colkeys)),
+        )
         layer_y += layer_h
 
     return ParallaxAtlas(
         image=image,
         regions=regions,
+        sequence_regions=sequence_regions,
         layer_tuning=dict(PARALLAX_LAYER_TUNING),
     )
 
@@ -125,6 +154,7 @@ def draw_parallax_background(
     player_x: float,
     visible_bounds: AABB,
 ) -> None:
+    del player_x
     pyxel.rect(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H, palette.BACKGROUND)
 
     for layer in (ParallaxLayer.FAR, ParallaxLayer.MID, ParallaxLayer.NEAR):
@@ -132,7 +162,7 @@ def draw_parallax_background(
         edge_z = far_stage_edge_z(snapshot, visible_bounds) + (
             farther_z_direction(snapshot) * tuning.z_offset
         )
-        scroll_world = player_x * tuning.pixels_per_world * snapshot.right.x
+        scroll_world = snapshot.position.x * tuning.pixels_per_world
         _draw_projected_layer(
             pyxel,
             atlas,
@@ -165,60 +195,110 @@ def _draw_projected_layer(
 ) -> None:
     sequence = PARALLAX_SEQUENCES[layer]
     tuning = atlas.layer_tuning[layer]
-    tile_world_w = tuning.world_width
-    cycle_w = tile_world_w * len(sequence)
-    normalized = scroll_world % cycle_w
-    start_index = floor(normalized / tile_world_w)
-    x = visible_bounds.minimum.x - tile_world_w - (normalized - start_index * tile_world_w)
-    sequence_index = start_index
+    region = atlas.sequence_regions[layer]
+    strip_world_w = tuning.world_width * len(sequence)
+    min_x, max_x = _projected_world_x_span_for_viewport(snapshot, edge_z, visible_bounds)
+    phase_x = scroll_world % strip_world_w
+    x = phase_x + floor((min_x - phase_x) / strip_world_w) * strip_world_w - strip_world_w
 
-    while x > visible_bounds.minimum.x - tile_world_w:
-        x -= tile_world_w
-        sequence_index -= 1
-
-    max_x = visible_bounds.maximum.x + tile_world_w
-    while x < max_x:
-        asset_id = sequence[sequence_index % len(sequence)]
-        region = atlas.regions[asset_id]
-        anchor_world = Vec3(x + tile_world_w * 0.5, GROUND_Y, edge_z)
-        camera_point = world_to_camera(snapshot, anchor_world)
-        projected = project_camera_point(snapshot, camera_point)
-        if projected is not None:
-            scale = _projected_tile_scale(
-                snapshot,
-                camera_point.z,
-                tile_world_w,
-                region.width,
-                tuning,
-            )
-            if scale > 0.0:
-                pyxel.blt(
-                    round(projected.x - region.width * scale * 0.5),
-                    round(projected.y - region.height * scale),
-                    atlas.image,
-                    region.u,
-                    region.v,
-                    region.width,
-                    region.height,
-                    region.colkey,
-                    scale=scale,
-                )
-        x += tile_world_w
-        sequence_index += 1
+    while x < max_x + strip_world_w:
+        _draw_projected_strip(
+            pyxel,
+            atlas,
+            snapshot,
+            region,
+            edge_z,
+            x,
+            x + strip_world_w,
+        )
+        x += strip_world_w
 
 
-def _projected_tile_scale(
+def _draw_projected_strip(
+    pyxel: Any,
+    atlas: ParallaxAtlas,
     snapshot: CameraSnapshot,
-    camera_z: float,
-    world_width: float,
-    source_width: int,
-    tuning: ParallaxLayerTuning,
-) -> float:
-    if camera_z <= 0.0 or source_width <= 0:
-        return 0.0
-    projected_width = snapshot.focal_px * world_width / camera_z
-    return clamp(
-        projected_width / source_width,
-        tuning.min_scale,
-        tuning.max_scale,
+    region: ParallaxSequenceRegion,
+    edge_z: float,
+    left_x: float,
+    right_x: float,
+) -> None:
+    left = project_world_point(snapshot, Vec3(left_x, GROUND_Y, edge_z))
+    right = project_world_point(snapshot, Vec3(right_x, GROUND_Y, edge_z))
+    if left is None or right is None:
+        return
+
+    screen_left = min(left.x, right.x)
+    screen_right = max(left.x, right.x)
+    screen_width = screen_right - screen_left
+    if screen_width <= 0.0 or region.width <= 0:
+        return
+
+    draw_x = floor(screen_left) - PARALLAX_STRIP_SCREEN_OVERLAP
+    draw_width = max(1, round(screen_width) + PARALLAX_STRIP_SCREEN_OVERLAP * 2)
+    scale = draw_width / region.width
+    bottom_y = max(left.y, right.y)
+
+    pyxel.blt(
+        draw_x,
+        round(bottom_y - region.height * scale),
+        atlas.image,
+        region.u,
+        region.v,
+        region.width,
+        region.height,
+        region.colkey,
+        scale=scale,
     )
+
+
+def _projected_world_x_span_for_viewport(
+    snapshot: CameraSnapshot,
+    edge_z: float,
+    visible_bounds: AABB,
+) -> tuple[float, float]:
+    xs = [
+        _world_x_at_screen_x_on_ground_z(
+            snapshot,
+            VIEWPORT_X - PARALLAX_VIEWPORT_MARGIN_X,
+            edge_z,
+        ),
+        _world_x_at_screen_x_on_ground_z(
+            snapshot,
+            VIEWPORT_X + VIEWPORT_W + PARALLAX_VIEWPORT_MARGIN_X,
+            edge_z,
+        ),
+    ]
+    finite_xs = [x for x in xs if x is not None]
+    if len(finite_xs) < 2:
+        return (
+            visible_bounds.minimum.x - PARALLAX_WORLD_SPAN_MARGIN_X,
+            visible_bounds.maximum.x + PARALLAX_WORLD_SPAN_MARGIN_X,
+        )
+
+    return (
+        min(visible_bounds.minimum.x, *finite_xs) - PARALLAX_WORLD_SPAN_MARGIN_X,
+        max(visible_bounds.maximum.x, *finite_xs) + PARALLAX_WORLD_SPAN_MARGIN_X,
+    )
+
+
+def _world_x_at_screen_x_on_ground_z(
+    snapshot: CameraSnapshot,
+    screen_x: float,
+    edge_z: float,
+) -> float | None:
+    q = (screen_x - snapshot.screen_center_x) / snapshot.focal_px
+    base = Vec3(0.0, GROUND_Y, edge_z) - snapshot.position
+    camera_x_without_world_x = base.dot(snapshot.right)
+    camera_z_without_world_x = base.dot(snapshot.forward)
+    denominator = snapshot.right.x - q * snapshot.forward.x
+    if abs(denominator) < 1e-6:
+        return None
+
+    world_x = (q * camera_z_without_world_x - camera_x_without_world_x) / denominator
+    if not isfinite(world_x):
+        return None
+    projected = project_world_point(snapshot, Vec3(world_x, GROUND_Y, edge_z))
+    if projected is None:
+        return None
+    return world_x
