@@ -134,7 +134,7 @@ class RendererTests(TestCase):
 
         self.assertIn(900, {face.object_id for face in renderer.render_faces})
 
-    def test_player_shadow_is_projected_on_floor_before_player_sprite(self) -> None:
+    def test_player_shadow_is_queued_before_player_sprite(self) -> None:
         renderer = Renderer.create()
         player = create_player()
         snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
@@ -171,6 +171,8 @@ class RendererTests(TestCase):
             show_lanes=False,
         )
         far_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+        far_shadow = next(face for face in renderer.render_faces if face.object_id == PLAYER_SHADOW_OBJECT_ID)
+        far_shadow_width = _projected_width(far_shadow.points)
 
         player.x = STAGE_MIN_X
         near_params = apply_left_edge_camera_blend(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x)
@@ -184,10 +186,37 @@ class RendererTests(TestCase):
             show_lanes=False,
         )
         near_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+        near_shadow = next(face for face in renderer.render_faces if face.object_id == PLAYER_SHADOW_OBJECT_ID)
+        near_shadow_width = _projected_width(near_shadow.points)
 
         self.assertGreater(near_sprite.scale, far_sprite.scale)
+        self.assertGreater(near_shadow_width, far_shadow_width)
         self.assertGreaterEqual(far_sprite.scale, PLAYER_SPRITE_MIN_SCALE)
         self.assertLessEqual(near_sprite.scale, PLAYER_SPRITE_MAX_SCALE)
+
+    def test_player_shadow_stays_at_sprite_foot_anchor_when_zoomed(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        player.x = STAGE_MIN_X
+        near_params = apply_left_edge_camera_blend(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x)
+        snapshot = make_camera_snapshot(near_params, player.x, player.z)
+
+        renderer.build_scene(
+            Stage(solids=(), zones=()),
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        shadow = next(face for face in renderer.render_faces if face.object_id == PLAYER_SHADOW_OBJECT_ID)
+        player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
+        min_x, _, max_x, max_y = _projected_bounds(shadow.points)
+        shadow_center_x = (min_x + max_x) * 0.5
+
+        self.assertAlmostEqual(shadow_center_x, player_sprite.anchor.x, delta=1.0)
+        self.assertAlmostEqual(max_y, player_sprite.anchor.y, delta=2.0)
 
     def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
         player = create_player()
@@ -318,6 +347,17 @@ class RendererTests(TestCase):
         _, negative_x_depth = _object_sort_depths(Vec3(-40.0, 0.0, 0.0), shot_c)
         _, positive_x_depth = _object_sort_depths(Vec3(40.0, 0.0, 0.0), shot_c)
         self.assertGreater(positive_x_depth, negative_x_depth)
+
+
+def _projected_bounds(points: tuple[object, ...]) -> tuple[float, float, float, float]:
+    xs = [point.x for point in points]
+    ys = [point.y for point in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _projected_width(points: tuple[object, ...]) -> float:
+    min_x, _, max_x, _ = _projected_bounds(points)
+    return max_x - min_x
 
 
 def make_fake_prop_atlas() -> PropSpriteAtlas:

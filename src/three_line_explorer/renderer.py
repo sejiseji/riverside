@@ -25,6 +25,8 @@ from three_line_explorer.config import (
     PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
     PLAYER_SHADOW_SIZE_Z,
+    PLAYER_SHADOW_SCREEN_Y_FLATTEN,
+    PLAYER_SHADOW_SCREEN_Y_OFFSET,
     PLAYER_SHADOW_Y,
     PLAYER_SPRITE_MAX_SCALE,
     PLAYER_SPRITE_MIN_SCALE,
@@ -260,7 +262,7 @@ class Renderer:
         for prop in inspectable_props:
             self._enqueue_inspectable_prop_sprite(prop, render_bounds, snapshot)
 
-        self._enqueue_player_shadow(player, snapshot, stats)
+        self._enqueue_player_shadow(player, snapshot, frame_count, stats)
         self._enqueue_player_sprite(player, snapshot, frame_count)
 
         if show_lanes:
@@ -275,16 +277,43 @@ class Renderer:
         self,
         player: PlayerState,
         snapshot: CameraSnapshot,
+        frame_count: int,
         stats: RenderStats,
     ) -> None:
-        shadow_face = make_player_shadow_face(player)
-        self._enqueue_face(
-            shadow_face,
-            RenderLayer.FLOOR_GUIDE,
-            snapshot,
-            stats,
-            object_sort_center=shadow_face.center,
+        anchor_world = Vec3(player.x, GROUND_Y, player.z)
+        camera_point = world_to_camera(snapshot, anchor_world)
+        projected = project_camera_point(snapshot, camera_point)
+        if projected is None:
+            return
+
+        _, _, _, source_width, _ = player_sprite_source(player, frame_count)
+        sprite_scale = calculate_sprite_scale(
+            snapshot.focal_px,
+            camera_point.z,
+            PLAYER_SPRITE_WORLD_WIDTH,
+            source_width,
+            minimum=PLAYER_SPRITE_MIN_SCALE,
+            maximum=PLAYER_SPRITE_MAX_SCALE,
         )
+        if sprite_scale <= 0.0:
+            return
+
+        points = make_player_shadow_screen_points(player, projected, sprite_scale)
+        lane_depth, route_depth = _object_sort_depths(anchor_world, snapshot)
+        self.render_faces.append(
+            RenderFace(
+                layer=RenderLayer.FLOOR_GUIDE,
+                lane_depth=lane_depth,
+                route_depth=route_depth,
+                depth=camera_point.z,
+                object_id=PLAYER_SHADOW_OBJECT_ID,
+                face_index=0,
+                points=points,
+                fill_color=palette.PLAYER_SHADOW,
+                outline_color=palette.PLAYER_SHADOW,
+            )
+        )
+        stats.draw_triangles += len(points) - 2
 
     def _enqueue_player_sprite(
         self,
@@ -709,6 +738,34 @@ def make_player_shadow_face(player: PlayerState) -> Face:
         center=center,
         fill_color=palette.PLAYER_SHADOW,
         outline_color=palette.PLAYER_SHADOW,
+    )
+
+
+def make_player_shadow_screen_points(
+    player: PlayerState,
+    anchor: ProjectedPoint,
+    sprite_scale: float,
+) -> tuple[ProjectedPoint, ...]:
+    frame = player_sprite_frame(player)
+    scale_x = PLAYER_SHADOW_FRAME_SCALE_X[frame % len(PLAYER_SHADOW_FRAME_SCALE_X)]
+    scale_z = PLAYER_SHADOW_FRAME_SCALE_Z[frame % len(PLAYER_SHADOW_FRAME_SCALE_Z)]
+    radius_x = PLAYER_SHADOW_SIZE_X * 0.5 * scale_x * sprite_scale
+    radius_y = (
+        PLAYER_SHADOW_SIZE_Z
+        * 0.5
+        * scale_z
+        * sprite_scale
+        * PLAYER_SHADOW_SCREEN_Y_FLATTEN
+    )
+    center_x = anchor.x
+    center_y = anchor.y + PLAYER_SHADOW_SCREEN_Y_OFFSET * sprite_scale
+    return tuple(
+        ProjectedPoint(
+            center_x + cos(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_x,
+            center_y + sin(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_y,
+            anchor.depth,
+        )
+        for index in range(PLAYER_SHADOW_SEGMENTS)
     )
 
 
