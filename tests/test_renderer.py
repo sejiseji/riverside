@@ -26,7 +26,6 @@ from three_line_explorer.environment_sprites import (
 from three_line_explorer.inspection_prop_sprites import (
     PropSpriteAtlas,
     SpriteRegion,
-    PropSpriteId,
 )
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.math3d import AABB, Vec3
@@ -282,10 +281,16 @@ class RendererTests(TestCase):
 
 
 def make_fake_prop_atlas() -> PropSpriteAtlas:
+    sprite_ids = tuple(
+        prop.sprite_id
+        for prop in Stage.create_prototype().inspectable_props
+        if prop.sprite_id is not None
+    )
     return PropSpriteAtlas(
-        image=object(),
+        images=(object(),),
         regions={
             sprite_id: SpriteRegion(
+                page_index=0,
                 u=index * 32,
                 v=0,
                 width=32,
@@ -293,8 +298,9 @@ def make_fake_prop_atlas() -> PropSpriteAtlas:
                 anchor_x=16,
                 anchor_y=23,
                 world_width=20.0,
+                marker_offset_y=8.0,
             )
-            for index, sprite_id in enumerate(PropSpriteId)
+            for index, sprite_id in enumerate(sprite_ids)
         },
     )
 

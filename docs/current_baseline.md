@@ -27,6 +27,9 @@ Future implementation order is tracked in `docs/roadmap.md`.
   same camera-side stage-order sort as player and prop sprites.
 - Environment sprite collision footprints are separate from their visual
   sprites and are not rendered as AABB boxes.
+- RIV013 drift content is split into ambient debris, owner letters, and memory
+  echoes. Story drift items are fixed-order and advance only when their panel is
+  closed after the final page.
 
 ## Screen
 
@@ -134,8 +137,14 @@ Pointer:
 
 - Main modules:
   - `inspection.py`: target selection, panel state, prompt/panel drawing
-  - `inspection_texts.py`: Japanese inspection copy
-  - `inspection_prop_sprites.py`: source-defined Pyxel color-map prop sprites
+  - `inspection_texts.py`: effective Japanese inspection text registry
+  - `inspection_content_registry.py`: RIV013 ambient/story text integration
+  - `story_content.py`: owner letters and memory echoes
+  - `story_progression.py`: fixed story sequence state
+  - `drift_item_catalog.py`: 100-slot drift item catalog
+  - `drift_item_randomizer.py`: weighted ambient item selection
+  - `drift_item_sprites.py`: 100 source-defined Pyxel color-map prop sprites
+  - `inspection_prop_sprites.py`: compatibility wrapper for the 100-slot prop atlas
   - `text_layout.py`: measured wrapping, kinsoku handling, page splitting, cache
   - `ui_fonts.py`: bundled font loading
 - Data type: `InspectableProp`
@@ -155,10 +164,17 @@ Pointer:
 - Existing camera transitions continue while the panel is open
 - Page advance: panel tap, `Z`, `Enter`, or `Space`
 - Read history: `InteractionState.inspected_ids`
-- Current text is Japanese prototype copy.
-- Current inspection targets: single sandal, clouded bottle, driftwood,
-  weathered sign
-- Current prop sprite set: single sandal, clouded bottle, driftwood
+- Current text is Japanese RIV013 content plus stage-local text.
+- Current content registry: 86 ambient drift items, 8 owner letters, 6 memory
+  echoes, plus stage-local `weathered_forest_sign`.
+- Current prototype placed targets: seven riverside drift props plus the inland
+  weathered sign.
+- Story area progress is currently mapped from the prototype route start
+  (`PLAYER_START_X`) toward `STAGE_MAX_X`; RIV014 can replace this with the
+  final A-R area table.
+- Active story item placement uses a temporary riverside slot near the player
+  and remains persistent until read.
+- Current prop sprite set: 100 RIV013 drift item sprites
 - Prop sprite storage: Python source rows using Pyxel palette digits
 - Prop sprite transparent authoring char: `.`
 - Prop sprite transparent palette index: 8
@@ -199,7 +215,9 @@ Pointer:
 - Walk phase source: actual player movement distance divided by
   `PLAYER_WALK_FRAME_DISTANCE`.
 - Source-defined inspection prop sprites: `src/three_line_explorer/inspection_prop_sprites.py`
-- Prop sprite atlas: 3 sprites x 32x24, generated once at runtime
+- Prop sprite atlas: 100 sprites x 32x24, generated once at runtime as two
+  256x256 pages
+- Prop sprite source: `src/three_line_explorer/drift_item_sprites.py`
 - Prop sprite image files: none
 - Source-defined environment pack: `src/three_line_explorer/generated_environment_assets.py`
 - Environment sprite atlas: world scenery sprites generated once at runtime

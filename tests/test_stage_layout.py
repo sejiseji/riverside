@@ -5,12 +5,13 @@ from unittest import TestCase
 from three_line_explorer.config import (
     LANE_Z,
     PLAYER_SIZE_Z,
+    PLAYER_START_X,
     RIVER_START_Z,
     STAGE_MAX_Z,
     STAGE_MIN_Z,
     VISIBLE_SIZE_Z,
 )
-from three_line_explorer.stage import Stage
+from three_line_explorer.stage import Stage, story_area_index_for_x
 
 
 class StageLayoutTests(TestCase):
@@ -56,4 +57,8 @@ class StageLayoutTests(TestCase):
     def test_prototype_stage_keeps_prop_count_small(self) -> None:
         stage = Stage.create_prototype()
         self.assertLessEqual(len(stage.solids), 12)
-        self.assertLessEqual(len(stage.inspectable_props), 6)
+        self.assertLessEqual(len(stage.inspectable_props), 10)
+
+    def test_story_area_index_starts_from_player_route_start(self) -> None:
+        self.assertEqual(story_area_index_for_x(PLAYER_START_X), 0)
+        self.assertEqual(story_area_index_for_x(480.0), 17)

@@ -27,6 +27,7 @@ from three_line_explorer.config import (
 from three_line_explorer.debug_hud import draw_debug_hud, draw_ui
 from three_line_explorer.input import InputAdapter, StickBasis
 from three_line_explorer.inspection import (
+    InspectableProp,
     InteractionState,
     PromptSnapshot,
     advance_or_close_inspection,
@@ -38,6 +39,10 @@ from three_line_explorer.inspection import (
     panel_rect,
     prompt_snapshot_for_prop,
     update_active_target,
+)
+from three_line_explorer.inspection_content_registry import (
+    CONTENT_METADATA,
+    InspectionContentKind,
 )
 from three_line_explorer.inspection_texts import INSPECTION_TEXTS
 from three_line_explorer.player import (
@@ -51,7 +56,18 @@ from three_line_explorer.player import (
     warp_player_near_right,
 )
 from three_line_explorer.renderer import RenderStats, Renderer
-from three_line_explorer.stage import CameraRule, Stage
+from three_line_explorer.stage import (
+    CameraRule,
+    Stage,
+    make_story_inspectable_prop,
+    story_area_index_for_x,
+)
+from three_line_explorer.story_progression import (
+    StoryProgressState,
+    activate_next_story_item_if_due,
+    mark_story_item_read,
+    record_ambient_inspection,
+)
 from three_line_explorer.text_layout import InspectionTextLayoutCache, create_text_measure
 from three_line_explorer.ui_fonts import load_ui_fonts
 from three_line_explorer.visible_volume import VisibleVolumeState, update_visible_volume
@@ -78,6 +94,9 @@ class App:
         pyxel.mouse(True)
 
         self.stage = Stage.create_prototype()
+        self.base_inspectable_props = self.stage.inspectable_props
+        self.story_progress = StoryProgressState()
+        self.active_story_prop_key: str | None = None
         self.player = create_player()
         self.visible_volume = update_visible_volume(self.player.x)
         self.camera = CameraRig.create()
@@ -141,6 +160,9 @@ class App:
         self.director = CameraDirector()
         self.input.pointer.reset()
         self.interaction = InteractionState()
+        self.story_progress = StoryProgressState()
+        self.active_story_prop_key = None
+        self._apply_story_prop(None)
         self.last_rendered_camera_snapshot = self._initial_snapshot()
         self.last_rendered_prompt = None
 
@@ -180,7 +202,9 @@ class App:
             self.player.velocity_x = 0.0
             self.player.last_move_distance = 0.0
             if intent.text_panel_advance_requested:
-                advance_or_close_inspection(self.interaction)
+                closed_text_key = advance_or_close_inspection(self.interaction)
+                if closed_text_key is not None:
+                    self._handle_inspection_closed(closed_text_key)
             self.camera.update(DT)
             return
 
@@ -217,6 +241,7 @@ class App:
         )
         self.camera.request_shot(desired_shot)
         self.camera.update(DT)
+        self._sync_story_prop()
         update_active_target(
             self.interaction,
             player_bounds_at(self.player.x, self.player.z),
@@ -230,6 +255,42 @@ class App:
         if not can_open_prop(player_bounds_at(self.player.x, self.player.z), prop):
             return
         open_inspection(self.interaction, prop, self.inspection_text_cache)
+
+    def _handle_inspection_closed(self, text_key: str) -> None:
+        metadata = CONTENT_METADATA.get(text_key)
+        if metadata is None:
+            return
+        if metadata.kind is InspectionContentKind.AMBIENT:
+            record_ambient_inspection(self.story_progress)
+        else:
+            mark_story_item_read(self.story_progress, content_id=text_key)
+        self._sync_story_prop()
+
+    def _sync_story_prop(self) -> None:
+        story_item = activate_next_story_item_if_due(
+            self.story_progress,
+            area_index=story_area_index_for_x(self.player.x),
+        )
+        if story_item is None:
+            self._apply_story_prop(None)
+            return
+        if self.active_story_prop_key == story_item.content_id:
+            return
+        self._apply_story_prop(
+            make_story_inspectable_prop(
+                story_item,
+                player_x=self.player.x,
+            )
+        )
+
+    def _apply_story_prop(self, prop: InspectableProp | None) -> None:
+        self.active_story_prop_key = None if prop is None else prop.text_key
+        self.stage.inspectable_props = (
+            self.base_inspectable_props
+            if prop is None
+            else (*self.base_inspectable_props, prop)
+        )
+        self.stage.rebuild_chunks()
 
     def draw(self) -> None:
         pyxel = self.pyxel

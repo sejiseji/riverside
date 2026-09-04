@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest import TestCase
 
 from three_line_explorer.inspection_prop_sprites import (
+    ATLAS_PAGE_COUNT,
     ATLAS_H,
     ATLAS_W,
     CELL_H,
@@ -26,8 +27,9 @@ class InspectionPropSpriteTests(TestCase):
     def test_atlas_dimensions(self) -> None:
         self.assertEqual(CELL_W, 32)
         self.assertEqual(CELL_H, 24)
-        self.assertEqual(ATLAS_W, CELL_W * len(SPRITE_ORDER))
-        self.assertEqual(ATLAS_H, CELL_H)
+        self.assertEqual(ATLAS_W, 256)
+        self.assertEqual(ATLAS_H, 256)
+        self.assertEqual(ATLAS_PAGE_COUNT, 2)
 
     def test_compile_rows_converts_authoring_dots_to_transparent_digit(self) -> None:
         first = SPRITE_DEFINITIONS[SPRITE_ORDER[0]]
@@ -57,12 +59,14 @@ class InspectionPropSpriteTests(TestCase):
 
         atlas = build_prop_sprite_atlas(pyxel)
 
-        self.assertEqual(pyxel.image.size, (ATLAS_W, ATLAS_H))
-        self.assertEqual(len(pyxel.image.set_calls), len(SPRITE_ORDER))
+        self.assertEqual([image.size for image in pyxel.images], [(ATLAS_W, ATLAS_H)] * 2)
+        self.assertEqual(sum(len(image.set_calls) for image in pyxel.images), len(SPRITE_ORDER))
         for index, sprite_id in enumerate(SPRITE_ORDER):
             region = atlas.regions[sprite_id]
-            self.assertEqual(region.u, index * CELL_W)
-            self.assertEqual(region.v, 0)
+            local_index = index % 64
+            self.assertEqual(region.page_index, index // 64)
+            self.assertEqual(region.u, (local_index % 8) * CELL_W)
+            self.assertEqual(region.v, (local_index // 8) * CELL_H)
             self.assertEqual(region.width, CELL_W)
             self.assertEqual(region.height, CELL_H)
             self.assertGreater(region.world_width, 0.0)
@@ -97,5 +101,8 @@ class FakeImage:
 
 class FakePyxel:
     def Image(self, width: int, height: int) -> FakeImage:
-        self.image = FakeImage(width, height)
-        return self.image
+        if not hasattr(self, "images"):
+            self.images = []
+        image = FakeImage(width, height)
+        self.images.append(image)
+        return image

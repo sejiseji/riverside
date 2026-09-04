@@ -1,6 +1,7 @@
 # riverside Roadmap
 
-Current baseline: RIV014.5 environment integration.
+Current baseline: RIV013 consolidated story pack integrated on top of the
+RIV014.5 environment foundation.
 
 This roadmap keeps the prototype focused on the current structure: three
 walkable Z lanes, a visual river on the +Z side, screen-space input, independent
@@ -29,15 +30,23 @@ GitHub Pages `.pyxapp` publishing.
 
 ## RIV013: Inspectable Prop Content Expansion
 
-- Expand from 3 props to about 5 props, not 10 yet.
+- Current implementation integrates the RIV013 consolidated pack:
+  - 86 ambient drift items selected by weighted random policy.
+  - 8 fixed-order owner letters.
+  - 6 fixed-order memory echoes.
+  - 100 total 32x24 source-defined drift sprites in a two-page atlas.
 - Keep props non-collision unless a separate collision object is explicitly
   needed.
 - Finalize the GPT prop-sprite authoring format: 32x24 Pyxel palette rows,
   `.` as transparent authoring char, palette index 8 as the prop
   `transparent_color`, and no visible use of color `8` inside those prop assets.
 - Keep prop text and prop placement separate through `text_key`.
-- Use this stage to stabilize the content addition flow before larger layout
-  work.
+- Prototype placement currently uses seven fixed riverside drift props; RIV014
+  should replace that with area-based placement slots.
+- Story progression is connected but uses a temporary route-start-to-stage-end
+  A-R mapping until the final area table exists.
+- Story items persist until read and advance only after the final inspection
+  panel page closes.
 
 ## RIV014: Riverside Stage Composition
 

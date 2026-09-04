@@ -23,7 +23,6 @@ from three_line_explorer.config import (
     VIEWPORT_X,
     VIEWPORT_Y,
 )
-from three_line_explorer.inspection_prop_sprites import PropSpriteId
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.projection import project_world_point
 from three_line_explorer.text_layout import (
@@ -58,7 +57,7 @@ class InspectableProp:
     render_object_id: int
     bounds: AABB
     text_key: str
-    sprite_id: PropSpriteId | None
+    sprite_id: str | None
     marker_height: float = 8.0
     acquire_padding_x: float = 28.0
     acquire_padding_z: float = 12.0
@@ -246,16 +245,18 @@ def open_inspection(
     return True
 
 
-def advance_or_close_inspection(state: InteractionState) -> None:
+def advance_or_close_inspection(state: InteractionState) -> str | None:
     if not state.panel_open:
-        return
+        return None
     if (
         state.prepared_text is not None
         and state.page_index + 1 < len(state.prepared_text.pages)
     ):
         state.page_index += 1
-        return
+        return None
+    closed_text_key = state.opened_text_key
     close_inspection(state)
+    return closed_text_key
 
 
 def close_inspection(state: InteractionState) -> None:

@@ -356,7 +356,7 @@ class Renderer:
                 depth=camera_point.z,
                 object_id=prop.render_object_id,
                 anchor=projected,
-                image_source=atlas.image,
+                image_source=atlas.images[region.page_index],
                 u=region.u,
                 v=region.v,
                 w=region.width,

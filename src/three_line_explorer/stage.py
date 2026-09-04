@@ -8,19 +8,23 @@ from three_line_explorer.config import (
     ENVIRONMENT_OBJECT_ID_BASE,
     INSPECTABLE_OBJECT_ID_BASE,
     LaneId,
+    PLAYER_START_X,
     RIVER_START_Z,
+    STAGE_AREA_COUNT,
     STAGE_CHUNK_SIZE_X,
     STAGE_MAX_X,
     STAGE_MIN_X,
+    STORY_INSPECTABLE_OBJECT_ID_BASE,
 )
+from three_line_explorer.drift_item_catalog import DRIFT_ITEM_BY_ID
 from three_line_explorer.environment_sprites import (
     EnvironmentSpriteInstance,
     make_environment_sprite_instance,
 )
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.inspection import InspectableProp
-from three_line_explorer.inspection_prop_sprites import PropSpriteId
-from three_line_explorer.math3d import AABB, Vec3
+from three_line_explorer.math3d import AABB, Vec3, clamp, clamp_int
+from three_line_explorer.story_content import StoryInspectionDefinition
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,6 +225,49 @@ def chunk_index(x: float) -> int:
     return floor((x - STAGE_MIN_X) / STAGE_CHUNK_SIZE_X)
 
 
+def area_index_for_x(x: float) -> int:
+    area_width = (STAGE_MAX_X - STAGE_MIN_X) / STAGE_AREA_COUNT
+    raw_index = int(floor((clamp(x, STAGE_MIN_X, STAGE_MAX_X) - STAGE_MIN_X) / area_width))
+    return clamp_int(raw_index, 0, STAGE_AREA_COUNT - 1)
+
+
+def area_center_x(area_index: int) -> float:
+    clamped_index = clamp_int(area_index, 0, STAGE_AREA_COUNT - 1)
+    area_width = (STAGE_MAX_X - STAGE_MIN_X) / STAGE_AREA_COUNT
+    return STAGE_MIN_X + (clamped_index + 0.5) * area_width
+
+
+def story_area_index_for_x(x: float) -> int:
+    route_length = STAGE_MAX_X - PLAYER_START_X
+    if route_length <= 0.0:
+        return 0
+    clamped_x = clamp(x, PLAYER_START_X, STAGE_MAX_X)
+    raw_index = int(floor((clamped_x - PLAYER_START_X) / route_length * STAGE_AREA_COUNT))
+    return clamp_int(raw_index, 0, STAGE_AREA_COUNT - 1)
+
+
+def make_story_inspectable_prop(
+    story_item: StoryInspectionDefinition,
+    *,
+    player_x: float,
+) -> InspectableProp:
+    item = DRIFT_ITEM_BY_ID[story_item.sprite_id]
+    x = clamp(
+        player_x + 44.0,
+        STAGE_MIN_X + 32.0,
+        STAGE_MAX_X - 32.0,
+    )
+    return _drift_prop(
+        object_id=f"story_{story_item.content_id}",
+        render_object_id=STORY_INSPECTABLE_OBJECT_ID_BASE + story_item.sequence_index,
+        item_id=story_item.sprite_id,
+        x=x,
+        text_key=story_item.text_key,
+        marker_height=item.marker_offset_y,
+        repeatable=False,
+    )
+
+
 def _solid(
     object_id: int,
     minimum: tuple[float, float, float],
@@ -269,38 +316,25 @@ def _create_prototype_solids() -> list[AabbSolid]:
 
 
 def _create_prototype_inspectable_props() -> list[InspectableProp]:
-    river_z = RIVER_START_Z
-    return [
-        InspectableProp(
-            object_id="river_prop_001",
-            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 1,
-            bounds=AABB(
-                Vec3(72.0, 0.0, river_z + 4.0),
-                Vec3(90.0, 4.0, river_z + 15.0),
-            ),
-            text_key="single_sandal",
-            sprite_id=PropSpriteId.SINGLE_SANDAL,
-        ),
-        InspectableProp(
-            object_id="river_prop_002",
-            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 2,
-            bounds=AABB(
-                Vec3(-42.0, 0.0, river_z + 5.0),
-                Vec3(-22.0, 4.0, river_z + 15.0),
-            ),
-            text_key="clouded_bottle",
-            sprite_id=PropSpriteId.CLOUDED_BOTTLE,
-        ),
-        InspectableProp(
-            object_id="river_prop_003",
-            render_object_id=INSPECTABLE_OBJECT_ID_BASE + 3,
-            bounds=AABB(
-                Vec3(182.0, 0.0, river_z + 4.0),
-                Vec3(206.0, 5.0, river_z + 17.0),
-            ),
-            text_key="driftwood",
-            sprite_id=PropSpriteId.DRIFTWOOD,
-        ),
+    items = (
+        ("single_sandal", 72.0),
+        ("clouded_bottle", -42.0),
+        ("sprouted_driftwood", 182.0),
+        ("rusted_key", 268.0),
+        ("yellow_name_tag", -306.0),
+        ("stopped_watch", -142.0),
+        ("chipped_mug", 346.0),
+    )
+    props = [
+        _drift_prop(
+            object_id=f"river_prop_{index:03d}",
+            render_object_id=INSPECTABLE_OBJECT_ID_BASE + index,
+            item_id=item_id,
+            x=x,
+        )
+        for index, (item_id, x) in enumerate(items, start=1)
+    ]
+    props.append(
         InspectableProp(
             object_id="environment_weathered_sign",
             render_object_id=ENVIRONMENT_OBJECT_ID_BASE + 3,
@@ -315,8 +349,41 @@ def _create_prototype_inspectable_props() -> list[InspectableProp]:
             acquire_padding_z=14.0,
             release_padding_x=32.0,
             release_padding_z=20.0,
+        )
+    )
+    return props
+
+
+def _drift_prop(
+    *,
+    object_id: str,
+    render_object_id: int,
+    item_id: str,
+    x: float,
+    text_key: str | None = None,
+    marker_height: float | None = None,
+    repeatable: bool = True,
+) -> InspectableProp:
+    item = DRIFT_ITEM_BY_ID[item_id]
+    visual_half_x = max(item.world_width * 0.5, 5.0)
+    visual_half_z = max(item.world_width * 0.28, 4.0)
+    center_z = RIVER_START_Z + 9.5
+    return InspectableProp(
+        object_id=object_id,
+        render_object_id=render_object_id,
+        bounds=AABB(
+            Vec3(x - visual_half_x, 0.0, center_z - visual_half_z),
+            Vec3(x + visual_half_x, 4.0, center_z + visual_half_z),
         ),
-    ]
+        text_key=text_key or item.text_key,
+        sprite_id=item.sprite_id,
+        marker_height=marker_height if marker_height is not None else item.marker_offset_y,
+        acquire_padding_x=item.acquire_padding_x,
+        acquire_padding_z=item.acquire_padding_z,
+        release_padding_x=item.acquire_padding_x + 8.0,
+        release_padding_z=item.acquire_padding_z + 6.0,
+        repeatable=repeatable,
+    )
 
 
 def _create_prototype_environment_sprites() -> list[EnvironmentSpriteInstance]:

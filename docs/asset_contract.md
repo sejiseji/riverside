@@ -73,21 +73,30 @@ Runtime transparent_color: Pyxel color 8
 Source transparent char: .
 Allowed transparent source chars: .012345679abcdef
 Visible color rule: color 8 cannot be used as visible pixels in this prop asset
-Current count: 3
-RIV013 target count: about 5
+Current count: 100
+Runtime atlas: two 256x256 pages
+Content split: 86 ambient, 8 owner letters, 6 memory echoes
 ```
 
 Required metadata:
 
 ```python
-PropSpriteDefinition(
-    rows=...,
+DriftItemDefinition(
+    item_id=...,
+    title=...,
+    body=...,
+    spawn_weight=...,
+    min_area_index=...,
     world_width=...,
+    marker_offset_y=...,
+    acquire_padding_x=...,
+    acquire_padding_z=...,
 )
 ```
 
 The current runtime calculates `anchor_x` and `anchor_y` from the visible pixel
-bounds. RIV013 may add explicit override fields for asymmetric objects.
+bounds. The 14 fixed story entries reuse existing physical sprite slots and are
+excluded from the default ambient random pool.
 
 GPT handoff prompt:
 
@@ -98,6 +107,8 @@ Use only .012345679abcdef.
 . is transparent. This prop uses transparent_color 8, so do not use visible color 8.
 No anti-aliasing, semi-transparency, or extra whitespace.
 Keep the object readable as a small silhouette.
+Also provide item_id, Japanese title/body, world_width, marker_offset_y,
+acquire_padding_x, acquire_padding_z, rarity/spawn_weight, and min_area_index.
 ```
 
 ## Parallax Background Tiles

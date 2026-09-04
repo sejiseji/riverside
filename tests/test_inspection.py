@@ -68,7 +68,7 @@ class InspectionTests(TestCase):
 
         update_active_target(
             state,
-            player_bounds_at(78.0, 22.0),
+            player_bounds_at(78.0, 24.0),
             stage.inspectable_props,
         )
         self.assertEqual(state.active_target_id, "river_prop_001")
@@ -108,7 +108,7 @@ class InspectionTests(TestCase):
 
         marker = marker_world_position(prop)
 
-        self.assertEqual(marker.x, 81.0)
+        self.assertEqual(marker.x, 72.0)
         self.assertEqual(marker.y, 12.0)
         self.assertEqual(marker.z, RIVER_START_Z + 9.5)
 
@@ -117,7 +117,7 @@ class InspectionTests(TestCase):
 
         anchor = prop_sprite_anchor(prop)
 
-        self.assertEqual(anchor.x, 81.0)
+        self.assertEqual(anchor.x, 72.0)
         self.assertEqual(anchor.y, 0.25)
         self.assertEqual(anchor.z, RIVER_START_Z + 9.5)
 
@@ -155,11 +155,8 @@ class InspectionTests(TestCase):
         assert page is not None
         self.assertEqual(state.prepared_text.title, "片方だけのサンダル")
 
-        advance_or_close_inspection(state)
-        self.assertTrue(state.panel_open)
-        self.assertEqual(state.page_index, 1)
-
-        advance_or_close_inspection(state)
+        closed_text_key = advance_or_close_inspection(state)
+        self.assertEqual(closed_text_key, "single_sandal")
         self.assertFalse(state.panel_open)
 
     def test_japanese_wrap_uses_font_measure(self) -> None:
