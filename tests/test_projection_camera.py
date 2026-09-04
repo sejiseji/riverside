@@ -3,8 +3,18 @@ from __future__ import annotations
 from math import isfinite
 from unittest import TestCase
 
-from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
-from three_line_explorer.config import CameraShotId
+from three_line_explorer.camera import (
+    CAMERA_SHOTS,
+    apply_left_edge_camera_blend,
+    left_edge_camera_blend_factor,
+    make_camera_snapshot,
+)
+from three_line_explorer.config import (
+    CameraShotId,
+    LEFT_EDGE_CAMERA_BLEND_START_X,
+    LEFT_EDGE_CAMERA_TARGET_DISTANCE,
+    STAGE_MIN_X,
+)
 from three_line_explorer.math3d import Vec3
 from three_line_explorer.projection import project_world_point, world_to_camera
 
@@ -61,3 +71,19 @@ class ProjectionCameraTests(TestCase):
 
         self.assertGreater(snapshot.position.z, snapshot.pivot.z)
         self.assertLess(abs(snapshot.position.x - snapshot.pivot.x), 40.0)
+
+    def test_left_edge_camera_blend_starts_partway_to_stage_edge(self) -> None:
+        self.assertEqual(left_edge_camera_blend_factor(0.0), 0.0)
+        self.assertEqual(left_edge_camera_blend_factor(LEFT_EDGE_CAMERA_BLEND_START_X), 0.0)
+        self.assertEqual(left_edge_camera_blend_factor(STAGE_MIN_X), 1.0)
+
+    def test_left_edge_camera_blend_orbits_and_zooms(self) -> None:
+        base = CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW]
+        mid_x = (LEFT_EDGE_CAMERA_BLEND_START_X + STAGE_MIN_X) * 0.5
+        blended = apply_left_edge_camera_blend(base, mid_x)
+        final = apply_left_edge_camera_blend(base, STAGE_MIN_X)
+
+        self.assertLess(blended.distance, base.distance)
+        self.assertLess(final.distance, blended.distance)
+        self.assertEqual(final.distance, LEFT_EDGE_CAMERA_TARGET_DISTANCE)
+        self.assertNotEqual(blended.azimuth, base.azimuth)

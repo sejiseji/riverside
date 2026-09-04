@@ -11,6 +11,12 @@ from three_line_explorer.config import (
     INITIAL_CAMERA,
     LANE_MAPPING_SWITCH_THRESHOLD_PX,
     LANE_Z,
+    LEFT_EDGE_CAMERA_BLEND_END_X,
+    LEFT_EDGE_CAMERA_BLEND_START_X,
+    LEFT_EDGE_CAMERA_TARGET_AZIMUTH,
+    LEFT_EDGE_CAMERA_TARGET_DISTANCE,
+    LEFT_EDGE_CAMERA_TARGET_ELEVATION,
+    LEFT_EDGE_CAMERA_TARGET_Y,
     MOVE_MAPPING_SWITCH_THRESHOLD_PX,
     SCREEN_W,
     VIEWPORT_H,
@@ -36,6 +42,13 @@ CameraShot = CameraParameters
 CAMERA_SHOTS: dict[CameraShotId, CameraShot] = {
     shot_id: CameraShot(*values) for shot_id, values in CAMERA_SHOT_SPECS.items()
 }
+
+LEFT_EDGE_CAMERA_TARGET = CameraParameters(
+    LEFT_EDGE_CAMERA_TARGET_AZIMUTH,
+    LEFT_EDGE_CAMERA_TARGET_ELEVATION,
+    LEFT_EDGE_CAMERA_TARGET_DISTANCE,
+    LEFT_EDGE_CAMERA_TARGET_Y,
+)
 
 SCREEN_INPUT_AXIS_SAMPLE_DISTANCE = 32.0
 
@@ -104,6 +117,24 @@ def interpolate_camera_params(
         distance=lerp(start.distance, target.distance, t),
         target_y=lerp(start.target_y, target.target_y, t),
     )
+
+
+def left_edge_camera_blend_factor(player_x: float) -> float:
+    distance = LEFT_EDGE_CAMERA_BLEND_START_X - LEFT_EDGE_CAMERA_BLEND_END_X
+    if distance <= 0.0 or player_x >= LEFT_EDGE_CAMERA_BLEND_START_X:
+        return 0.0
+    raw_t = (LEFT_EDGE_CAMERA_BLEND_START_X - player_x) / distance
+    return smootherstep(raw_t)
+
+
+def apply_left_edge_camera_blend(
+    params: CameraParameters,
+    player_x: float,
+) -> CameraParameters:
+    blend = left_edge_camera_blend_factor(player_x)
+    if blend <= 0.0:
+        return params
+    return interpolate_camera_params(params, LEFT_EDGE_CAMERA_TARGET, blend)
 
 
 @dataclass(slots=True)

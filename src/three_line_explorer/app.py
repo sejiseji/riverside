@@ -6,6 +6,7 @@ from three_line_explorer import palette
 from three_line_explorer.camera import (
     CameraRig,
     CameraSnapshot,
+    apply_left_edge_camera_blend,
     compute_lane_screen_x,
     compute_lane_screen_y,
     compute_move_screen_x_delta,
@@ -140,7 +141,7 @@ class App:
 
     def _initial_snapshot(self) -> CameraSnapshot:
         snapshot = make_camera_snapshot(
-            self.camera.current_params,
+            apply_left_edge_camera_blend(self.camera.current_params, self.player.x),
             self.player.x,
             self.player.z,
             shot_id=self.camera.current_shot_id,
@@ -325,7 +326,7 @@ class App:
         pyxel.cls(palette.BACKGROUND)
 
         snapshot = make_camera_snapshot(
-            self.camera.current_params,
+            apply_left_edge_camera_blend(self.camera.current_params, self.player.x),
             self.player.x,
             self.player.z,
             lane_screen_x=self.last_rendered_camera_snapshot.lane_screen_x,

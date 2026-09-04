@@ -109,6 +109,10 @@ Shots:
 - D: `RIGHT_SIDE_WIDE`, azimuth 92, elevation 8, distance 760
 - Stage forced B zone: X=140 .. `STAGE_MAX_X`, manual camera switching disabled
   while inside.
+- Left-edge camera blend: from X=-260 toward `STAGE_MIN_X`, the rendered camera
+  parameters are position-blended toward azimuth 255, elevation 7, distance 460.
+  This is applied after the active shot transition, so normal shot IDs and
+  input mapping still use the rendered camera snapshot.
 
 ## Input
 
