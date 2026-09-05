@@ -213,30 +213,34 @@ def _draw_projected_layer(
 ) -> None:
     sequence = PARALLAX_SEQUENCES[layer]
     tuning = atlas.layer_tuning[layer]
-    region = atlas.sequence_regions[layer]
-    strip_world_w = tuning.world_width * len(sequence)
+    tile_world_w = tuning.world_width
+    sequence_world_w = tile_world_w * len(sequence)
     min_x, max_x = _projected_world_x_span_for_viewport(snapshot, edge_z, visible_bounds)
-    phase_x = scroll_world % strip_world_w
-    x = phase_x + floor((min_x - phase_x) / strip_world_w) * strip_world_w - strip_world_w
+    phase_x = scroll_world % sequence_world_w
+    tile_index = floor((min_x - phase_x) / tile_world_w) - 1
 
-    while x < max_x + strip_world_w:
-        _draw_projected_strip(
+    while True:
+        left_x = phase_x + tile_index * tile_world_w
+        if left_x >= max_x + tile_world_w:
+            break
+        asset_id = sequence[tile_index % len(sequence)]
+        _draw_projected_tile(
             pyxel,
             atlas,
             snapshot,
-            region,
+            atlas.regions[asset_id],
             edge_z,
-            x,
-            x + strip_world_w,
+            left_x,
+            left_x + tile_world_w,
         )
-        x += strip_world_w
+        tile_index += 1
 
 
-def _draw_projected_strip(
+def _draw_projected_tile(
     pyxel: Any,
     atlas: ParallaxAtlas,
     snapshot: CameraSnapshot,
-    region: ParallaxSequenceRegion,
+    region: ParallaxSequenceRegion | ParallaxTileRegion,
     edge_z: float,
     left_x: float,
     right_x: float,

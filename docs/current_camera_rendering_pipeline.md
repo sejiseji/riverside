@@ -373,7 +373,7 @@ This same calculation is used for:
 - player sprites
 - drift / inspectable prop sprites
 - environment world sprites
-- projected parallax strips
+- projected parallax tiles
 
 ## Object: Player Sprite
 
@@ -628,13 +628,14 @@ Atlas:
   - FAR: `64 x 32 x 4`
   - MID: `64 x 48 x 4`
   - NEAR: `64 x 64 x 4`
-- Each layer is precomposed into a `256 px` wide sequence strip.
+- Each layer keeps `a -> b -> c -> d` as a `256 px` atlas sequence for stable
+  metadata, but runtime drawing projects and draws each `64 px` tile separately.
 - Sequence order: `a -> b -> c -> d`
 - Transparent color: `8`
 
 Current tuning:
 
-| Layer | Pixels/world | Strip tile world width | Lines |
+| Layer | Pixels/world | Tile world width | Lines |
 | --- | ---: | ---: | --- |
 | FAR | 0.035 | 72 | `z_offset=64 phase=0.0 scroll=0.8`, `z_offset=44 phase=0.5 scroll=1.0` |
 | MID | 0.085 | 64 | `z_offset=36 phase=0.25 scroll=0.9`, `z_offset=24 phase=0.75 scroll=1.1` |
@@ -649,18 +650,18 @@ line_z = edge_z + direction * line.z_offset
 ```
 
 This creates multiple stage-parallel backdrop lines beyond the far edge of the
-expanded scene. The nearer/farther pair hides gaps caused by transparent strip
+expanded scene. The nearer/farther pair hides gaps caused by transparent tile
 edges and camera angle changes.
 
 Scroll:
 
 ```python
-strip_world_w = tuning.world_width * len(PARALLAX_SEQUENCES[layer])
+sequence_world_w = tuning.world_width * len(PARALLAX_SEQUENCES[layer])
 scroll_world = (
     snapshot.position.x
     * tuning.pixels_per_world
     * line.scroll_multiplier
-    + strip_world_w * line.phase_ratio
+    + sequence_world_w * line.phase_ratio
 )
 ```
 
@@ -670,14 +671,22 @@ Visible world X span:
 - Adds `PARALLAX_VIEWPORT_MARGIN_X = 96` screen pixels and
   `PARALLAX_WORLD_SPAN_MARGIN_X = 96.0` world units.
 
+Tiling:
+
+1. Compute the current camera's world-X span on the backdrop line.
+2. Convert `scroll_world` to a phase inside the `a -> b -> c -> d` sequence.
+3. Walk tile indices across the span.
+4. Select `sequence[tile_index % 4]`.
+5. Project each tile's left, right, and middle ground anchors.
+6. Draw that tile with its own scale and bottom anchor.
+
 Scale:
 
-1. Project strip left, right, and middle points.
-2. Compute edge scale from projected left/right screen width.
-3. Compute midpoint scale from midpoint camera depth.
-4. Use edge scale only if it is stable.
-5. Otherwise use midpoint scale.
-6. Clamp final scale to `PARALLAX_STRIP_SCALE_LIMIT = 4.0`.
+1. Compute edge scale from the projected tile left/right screen width.
+2. Compute midpoint scale from the tile midpoint camera depth.
+3. Use edge scale only if it is stable.
+4. Otherwise use midpoint scale.
+5. Clamp final scale to `PARALLAX_STRIP_SCALE_LIMIT = 4.0`.
 
 Stability rule:
 

@@ -52,7 +52,7 @@ class ParallaxTests(TestCase):
         self.assertEqual(farther_z_direction(shot_a), -1.0)
         self.assertEqual(farther_z_direction(shot_c), 1.0)
 
-    def test_draw_parallax_emits_strips_for_each_layer(self) -> None:
+    def test_draw_parallax_emits_tiles_for_each_layer(self) -> None:
         pyxel = FakePyxel()
         atlas = build_parallax_atlas(pyxel)
         snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 40.0, 0.0)
@@ -82,7 +82,36 @@ class ParallaxTests(TestCase):
             drawn_count_by_layer,
         )
         for call in pyxel.blt_calls:
-            self.assertEqual(call.width, 256)
+            self.assertEqual(call.width, 64)
+
+    def test_draw_parallax_reprojects_individual_tiles(self) -> None:
+        pyxel = FakePyxel()
+        atlas = build_parallax_atlas(pyxel)
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 40.0, 0.0)
+        visible = update_visible_volume(40.0)
+
+        draw_parallax_background(pyxel, atlas, snapshot, player_x=40.0, visible_bounds=visible.bounds)
+
+        asset_id_by_uv = {
+            (region.u, region.v): asset_id
+            for asset_id, region in atlas.regions.items()
+        }
+        tile_region_uvs = {
+            (region.u, region.v)
+            for region in atlas.regions.values()
+        }
+        drawn_uvs = {(call.u, call.v) for call in pyxel.blt_calls}
+        self.assertTrue(drawn_uvs <= tile_region_uvs)
+        self.assertTrue(all(call.width == 64 for call in pyxel.blt_calls))
+        sequence_widths = {
+            layer: region.width
+            for layer, region in atlas.sequence_regions.items()
+        }
+        tile_widths_are_narrower_than_sequences = []
+        for call in pyxel.blt_calls:
+            layer = _layer_for_region(asset_id_by_uv[(call.u, call.v)])
+            tile_widths_are_narrower_than_sequences.append(call.width < sequence_widths[layer])
+        self.assertTrue(any(tile_widths_are_narrower_than_sequences))
 
     def test_projected_world_span_recalculates_from_camera(self) -> None:
         visible = update_visible_volume(0.0)
@@ -100,7 +129,7 @@ class ParallaxTests(TestCase):
         self.assertGreater(span_c[1], visible.bounds.maximum.x)
         self.assertNotEqual(span_a, span_c)
 
-    def test_parallax_strip_scale_changes_with_camera_and_stays_bounded(self) -> None:
+    def test_parallax_tile_scale_changes_with_camera_and_stays_bounded(self) -> None:
         pyxel = FakePyxel()
         atlas = build_parallax_atlas(pyxel)
         visible = update_visible_volume(0.0)
