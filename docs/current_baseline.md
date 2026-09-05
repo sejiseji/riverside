@@ -2,6 +2,8 @@
 
 This document captures the current implementation baseline for the prototype.
 Future implementation order is tracked in `docs/roadmap.md`.
+Detailed camera, projection, scaling, and per-object drawing behavior is tracked
+in `docs/current_camera_rendering_pipeline.md`.
 
 ## Core Rules
 
