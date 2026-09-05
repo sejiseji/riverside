@@ -19,10 +19,13 @@ from three_line_explorer.camera_director import CameraDirector
 from three_line_explorer.config import (
     DT,
     FPS,
+    GROUND_Y,
     INSPECTION_BODY_FONT_SIZE,
     INSPECTION_TEXT_MAX_LINES,
     INSPECTION_TEXT_MAX_WIDTH,
-    PLAYER_SIZE_Y,
+    PLAYER_SPRITE_MAX_SCALE,
+    PLAYER_SPRITE_MIN_SCALE,
+    PLAYER_SPRITE_WORLD_WIDTH,
     SCREEN_H,
     SCREEN_W,
     VIEWPORT_H,
@@ -46,6 +49,7 @@ from three_line_explorer.inspection import (
     prompt_snapshot_for_prop,
     update_active_target,
 )
+from three_line_explorer.inspection_prop_sprites import calculate_sprite_scale
 from three_line_explorer.inspection_content_registry import (
     CONTENT_METADATA,
     InspectionContentKind,
@@ -67,6 +71,7 @@ from three_line_explorer.player import (
     warp_player_near_left,
     warp_player_near_right,
 )
+from three_line_explorer.player_sprite import PLAYER_SPRITE_FRAME_W, player_head_screen_point
 from three_line_explorer.projection import project_world_point
 from three_line_explorer.renderer import RenderStats, Renderer
 from three_line_explorer.stage import (
@@ -301,7 +306,8 @@ class App:
             area_index=story_area_index_for_x(self.player.x),
         )
         if story_item is None:
-            self._apply_story_prop(None)
+            if self.active_story_prop_key is not None:
+                self._apply_story_prop(None)
             return
         if self.active_story_prop_key == story_item.content_id:
             return
@@ -413,19 +419,34 @@ class App:
         return prompt
 
     def _draw_owner_memory_bubble(self, snapshot: CameraSnapshot) -> None:
-        head = project_world_point(
+        foot = project_world_point(
             snapshot,
-            Vec3(self.player.x, PLAYER_SIZE_Y + 5.0, self.player.z),
+            Vec3(self.player.x, GROUND_Y, self.player.z),
         )
-        if head is None:
+        if foot is None:
             return
+        scale = calculate_sprite_scale(
+            snapshot.focal_px,
+            foot.depth,
+            PLAYER_SPRITE_WORLD_WIDTH,
+            PLAYER_SPRITE_FRAME_W,
+            minimum=PLAYER_SPRITE_MIN_SCALE,
+            maximum=PLAYER_SPRITE_MAX_SCALE,
+        )
+        if scale <= 0.0:
+            return
+        head_x, head_y = player_head_screen_point(
+            foot_screen_x=foot.x,
+            foot_screen_y=foot.y,
+            scale=scale,
+        )
         pyxel = self.pyxel
         pyxel.clip(VIEWPORT_X, VIEWPORT_Y, VIEWPORT_W, VIEWPORT_H)
         draw_owner_memory_bubble(
             self.owner_memory_atlas,
             frame_index=animation_frame_index(self.owner_memory_elapsed),
-            cat_head_screen_x=head.x,
-            cat_head_screen_y=head.y,
+            cat_head_screen_x=head_x,
+            cat_head_screen_y=head_y,
         )
         pyxel.clip()
 

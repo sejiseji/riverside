@@ -1,6 +1,6 @@
 # Riverside Current Camera And Rendering Pipeline
 
-Baseline: `301093f`
+Baseline: post-`301093f` rendering-contract pass
 
 This document describes the current implementation contract for camera shots,
 camera transitions, screen projection, scale calculation, render ordering, and
@@ -241,24 +241,26 @@ Solid faces and sprites are put into one combined render stream.
 Face key:
 
 ```python
-(layer, -lane_depth, -route_depth, -depth, object_id, face_index)
+(layer, -depth, object_id, face_index, 0, 0)
 ```
 
 Sprite key:
 
 ```python
-(layer, -lane_depth, -route_depth, -depth, object_id, 0)
+(layer, -depth, object_id, 0, 0, 0)
 ```
 
-Depth components:
+Primary depth is camera-space depth. Larger camera depth is farther away and
+drawn first:
 
 ```python
-lane_depth = object_center.z * snapshot.forward.z
-route_depth = object_center.x * snapshot.forward.x
+depth = dot(world_point - snapshot.position, snapshot.forward)
 ```
 
-This is the current stage-order painter sort. It is intentionally not a pixel
-Z-buffer. Camera side changes are handled through `snapshot.forward`.
+`lane_depth` and `route_depth` are still stored on sprite/face records for
+debugging and future tuning, but they are no longer the leading sort keys.
+This is still a painter sort, not a pixel Z-buffer. Large intersecting objects
+can still need manual splitting.
 
 Render layers:
 
@@ -346,6 +348,33 @@ Rendering:
 - Layer: `SOLID`
 - Drawn by `_draw_face()` with filled triangles and per-face outline.
 
+## Shared Scaled Sprite Anchor
+
+Scaled sprite placement uses the helper in `blit_anchor.py`.
+
+Pyxel `blt(..., scale=s)` scales around the source rectangle center, not around
+the top-left corner. For a desired screen anchor `P`, source-space anchor `A`,
+and source center `C = ((w - 1) / 2, (h - 1) / 2)`, the destination origin `D`
+is:
+
+```python
+D = P - C - scale * (A - C)
+```
+
+Runtime implementation:
+
+```python
+draw_x = round(screen_x - center_x - scale * (anchor_x - center_x))
+draw_y = round(screen_y - center_y - scale * (anchor_y - center_y))
+```
+
+This same calculation is used for:
+
+- player sprites
+- drift / inspectable prop sprites
+- environment world sprites
+- projected parallax strips
+
 ## Object: Player Sprite
 
 World anchor:
@@ -370,7 +399,9 @@ Sprite source:
 - Frames: 4
 - Transparent color: `2`
 
-Direction row comes from `player.render_yaw`.
+Direction row comes from `player.render_yaw` and the current rendered camera
+snapshot. The player's logical/world facing is not changed by the camera; only
+the selected sprite row changes according to the camera-relative view angle.
 
 Animation:
 
@@ -395,14 +426,23 @@ Current values:
 Screen placement:
 
 ```python
-draw_x = round(projected.x - PLAYER_SPRITE_ANCHOR_X * scale)
-draw_y = round(projected.y - PLAYER_SPRITE_ANCHOR_Y * scale)
+draw_x, draw_y = anchored_blt_origin(
+    screen_x=projected.x,
+    screen_y=projected.y,
+    width=48,
+    height=64,
+    anchor_x=PLAYER_SPRITE_ANCHOR_X,
+    anchor_y=PLAYER_SPRITE_ANCHOR_Y,
+    scale=scale,
+)
 ```
 
 Current anchor:
 
 - `PLAYER_SPRITE_ANCHOR_X = 24.0`
 - `PLAYER_SPRITE_ANCHOR_Y = 60.0`
+- Head attachment: `PLAYER_SPRITE_HEAD_ANCHOR_X = 24.0`,
+  `PLAYER_SPRITE_HEAD_ANCHOR_Y = 13.0`
 
 Rendering:
 
@@ -413,62 +453,37 @@ Rendering:
 
 ## Object: Player Shadow
 
-The current player shadow is a screen-space ellipse derived from the final
-player sprite draw origin. It is not a projected world-floor polygon in the
-active draw path.
-
-Input:
-
-- Uses the already-created player `RenderSprite`.
-- Uses the same `sprite.scale` as the cat.
-- Uses current player walk frame for subtle width/depth changes.
-
-Radii:
+The player shadow is a projected world-floor ellipse. It shares the same ground
+contact center as the player sprite:
 
 ```python
-radius_x = PLAYER_SHADOW_SIZE_X * 0.5 * frame_scale_x * sprite.scale
-radius_y = (
-    PLAYER_SHADOW_SIZE_Z
-    * 0.5
-    * frame_scale_z
-    * sprite.scale
-    * PLAYER_SHADOW_SCREEN_Y_FLATTEN
-)
+center = Vec3(player.x, GROUND_Y + PLAYER_SHADOW_Y, player.z)
+```
+
+Radii are in world units and are modulated by the current walk frame:
+
+```python
+radius_x = PLAYER_SHADOW_SIZE_X * 0.5 * frame_scale_x
+radius_z = PLAYER_SHADOW_SIZE_Z * 0.5 * frame_scale_z
 ```
 
 Current values:
 
 - `PLAYER_SHADOW_SIZE_X = 22.0`
 - `PLAYER_SHADOW_SIZE_Z = 12.0`
-- `PLAYER_SHADOW_SCREEN_Y_FLATTEN = 0.45`
+- `PLAYER_SHADOW_Y = 0.06`
+- `PLAYER_SHADOW_SEGMENTS = 14`
 - `PLAYER_SHADOW_FRAME_SCALE_X = (1.0, 0.94, 1.05, 0.94)`
 - `PLAYER_SHADOW_FRAME_SCALE_Z = (1.0, 1.04, 0.96, 1.04)`
 
-Foot anchor is reconstructed from the rounded sprite draw origin:
-
-```python
-foot_x = draw_x + sprite.anchor_offset_x * sprite.scale
-foot_y = draw_y + sprite.anchor_offset_y * sprite.scale
-```
-
-Shadow center:
-
-```python
-center_x = foot_x
-center_y = foot_y - radius_y + PLAYER_SHADOW_SCREEN_Y_OFFSET * sprite.scale
-```
-
-Current contact correction:
-
-- `PLAYER_SHADOW_SCREEN_Y_OFFSET = -6.0`
-
 Rendering:
 
-- Converted to `PLAYER_SHADOW_SEGMENTS = 14` screen points.
+- Generated by `make_player_shadow_face(player)`.
+- Projected and near-clipped through the same face path as floor geometry.
 - Layer: `FLOOR_GUIDE`
 - Object id: `PLAYER_SHADOW_OBJECT_ID`
 - Drawn by `_draw_face()` as filled triangles.
-- Sort depth is copied from the player sprite.
+- No screen-space Y correction is applied.
 
 ## Object: Drift / Inspectable Prop Sprite
 
@@ -502,8 +517,15 @@ scale = clamp(projected_width / region.width, 0.5, 1.5)
 Screen placement:
 
 ```python
-draw_x = round(projected.x - region.anchor_x * scale)
-draw_y = round(projected.y - region.anchor_y * scale)
+draw_x, draw_y = anchored_blt_origin(
+    screen_x=projected.x,
+    screen_y=projected.y,
+    width=region.width,
+    height=region.height,
+    anchor_x=region.anchor_x,
+    anchor_y=region.anchor_y,
+    scale=scale,
+)
 ```
 
 Rendering:
@@ -570,8 +592,15 @@ scale = clamp(projected_width / region.width, 0.5, 1.5)
 Screen placement:
 
 ```python
-draw_x = round(projected.x - region.anchor_x * scale)
-draw_y = round(projected.y - region.anchor_y * scale)
+draw_x, draw_y = anchored_blt_origin(
+    screen_x=projected.x,
+    screen_y=projected.y,
+    width=region.width,
+    height=region.height,
+    anchor_x=region.anchor_x,
+    anchor_y=region.anchor_y,
+    scale=scale,
+)
 ```
 
 Rendering:
@@ -664,15 +693,31 @@ Screen placement:
 - Stable edge projection:
 
 ```python
-draw_x = floor(screen_left) - 1
+anchor_screen_x = floor(screen_left) - 1
+source_anchor_x = 0.0
 bottom_y = max(left.y, right.y)
 ```
 
 - Midpoint fallback:
 
 ```python
-draw_x = round(middle.x - region.width * scale * 0.5)
+anchor_screen_x = middle.x
+source_anchor_x = (region.width - 1) * 0.5
 bottom_y = middle.y
+```
+
+Both paths then use the shared Pyxel center-pivot anchor calculation:
+
+```python
+draw_x, draw_y = anchored_blt_origin(
+    screen_x=anchor_screen_x,
+    screen_y=bottom_y,
+    width=region.width,
+    height=region.height,
+    anchor_x=source_anchor_x,
+    anchor_y=region.height - 1,
+    scale=scale,
+)
 ```
 
 Draw call:
@@ -680,7 +725,7 @@ Draw call:
 ```python
 pyxel.blt(
     draw_x,
-    round(bottom_y - region.height * scale),
+    draw_y,
     atlas.image,
     region.u,
     region.v,
@@ -755,9 +800,24 @@ inspection content.
 Anchor:
 
 ```python
-head_world = Vec3(player.x, PLAYER_SIZE_Y + 5.0, player.z)
-head_screen = project_world_point(snapshot, head_world)
+foot = project_world_point(snapshot, Vec3(player.x, GROUND_Y, player.z))
+scale = calculate_sprite_scale(
+    snapshot.focal_px,
+    foot.depth,
+    PLAYER_SPRITE_WORLD_WIDTH,
+    PLAYER_SPRITE_FRAME_W,
+    minimum=PLAYER_SPRITE_MIN_SCALE,
+    maximum=PLAYER_SPRITE_MAX_SCALE,
+)
+head_screen = player_head_screen_point(
+    foot_screen_x=foot.x,
+    foot_screen_y=foot.y,
+    scale=scale,
+)
 ```
+
+The bubble is therefore attached to the visible cat sprite head, not to the
+logical `PLAYER_SIZE_Y` cuboid height.
 
 Sprite source:
 
@@ -799,3 +859,4 @@ Rendering:
 - Runtime parallax renderer: `src/three_line_explorer/parallax.py`
 - Inspection prompt and panel: `src/three_line_explorer/inspection.py`
 - Owner memory bubble: `src/three_line_explorer/owner_memory_bubble_sprites.py`
+- Shared scaled `blt` anchor math: `src/three_line_explorer/blit_anchor.py`

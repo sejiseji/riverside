@@ -27,7 +27,7 @@ in `docs/current_camera_rendering_pipeline.md`.
   projected from stage-parallel backdrop lines, before floor, river, solids,
   sprites, prompts, and UI.
 - Environment world sprites use source-defined Pyxel color maps and share the
-  same camera-side stage-order sort as player and prop sprites.
+  same camera-depth painter sort as player and prop sprites.
 - Environment sprite collision footprints are separate from their visual
   sprites and are not rendered as AABB boxes.
 - RIV013 drift content is split into ambient debris, owner letters, and memory
@@ -92,17 +92,18 @@ River:
   `pyxel.frame_count`.
 - Turn-in-place, reading panels, and blocked frames keep the sprite on an idle
   frame because `last_move_distance` is zero.
-- A small player shadow is drawn as a screen-space ellipse derived from the
-  final player sprite draw origin, so the shadow follows sprite scale and anchor
-  rounding.
-- Shadow Y contact is pulled upward by `PLAYER_SHADOW_SCREEN_Y_OFFSET = -6.0`
-  in scaled screen pixels to keep it visually attached under the cat's feet
-  during close camera shots.
-- The shadow uses the current sprite walk frame to apply subtle width/depth
-  scale changes, and uses the same camera-distance scale as the player sprite.
+- A small player shadow is drawn as a projected world-floor ellipse centered on
+  the same ground contact point as the player.
+- The shadow uses the current sprite walk frame to apply subtle world-space
+  width/depth scale changes.
 - The player sprite uses camera-distance scaling instead of a fixed 1x draw:
   world width 26, clamped to 0.85 .. 1.65. Close camera shots therefore make
   the cat visibly larger while keeping the same sprite source.
+- Scaled sprite draw origins use the shared Pyxel center-pivot anchor helper in
+  `blit_anchor.py`, because `pyxel.blt(..., scale=...)` scales around the
+  source rectangle center.
+- Player sprite direction rows are selected from player yaw relative to the
+  rendered camera snapshot. Camera movement does not change the logical facing.
 
 ## Camera
 
@@ -190,8 +191,9 @@ Pointer:
   `MEMORY_ECHO`, not normal ambient drift items.
 - Owner memory bubble timing: reset to frame 0 when the panel opens, then uses
   panel-local elapsed frames while the panel remains open.
-- Owner memory bubble anchor: `Vec3(player.x, PLAYER_SIZE_Y + 5.0, player.z)`
-  projected through the current camera.
+- Owner memory bubble anchor: the projected player foot point plus the scaled
+  sprite head attachment offset, so it follows the visible cat sprite rather
+  than the old logical cuboid height.
 - Current text is Japanese RIV013 content plus stage-local text.
 - Current content registry: 86 ambient drift items, 8 owner letters, 6 memory
   echoes, plus stage-local `weathered_forest_sign`.
@@ -212,8 +214,7 @@ Pointer:
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
 - Prop, environment, and player sprite draw order: same Painter sprite queue,
-  sorted by camera-side lane depth, route depth, camera depth, and stable
-  object id
+  sorted by camera depth first and stable object id second.
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 16 px, body 15 px

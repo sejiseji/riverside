@@ -11,13 +11,14 @@ from three_line_explorer.camera import (
 from three_line_explorer.config import (
     ENVIRONMENT_OBJECT_ID_BASE,
     FLOOR_OBJECT_ID,
+    GROUND_Y,
     INSPECTABLE_OBJECT_ID_BASE,
     PLAYER_OBJECT_ID,
     PLAYER_SHADOW_OBJECT_ID,
     PLAYER_SHADOW_FRAME_SCALE_X,
     PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
-    PLAYER_SHADOW_SCREEN_Y_OFFSET,
+    PLAYER_SHADOW_Y,
     PLAYER_SPRITE_MAX_SCALE,
     PLAYER_SPRITE_MIN_SCALE,
     RIVER_OBJECT_ID,
@@ -39,6 +40,7 @@ from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.math3d import AABB, Vec3
 from three_line_explorer.player import create_player
 from three_line_explorer.player_sprite import PLAYER_SPRITE_ANCHOR_Y
+from three_line_explorer.projection import project_world_point
 from three_line_explorer.renderer import (
     Renderer,
     _face_sort_depth,
@@ -214,13 +216,26 @@ class RendererTests(TestCase):
 
         shadow = next(face for face in renderer.render_faces if face.object_id == PLAYER_SHADOW_OBJECT_ID)
         player_sprite = next(sprite for sprite in renderer.render_sprites if sprite.object_id == PLAYER_OBJECT_ID)
-        min_x, _, max_x, max_y = _projected_bounds(shadow.points)
-        shadow_center_x = (min_x + max_x) * 0.5
+        min_x, min_y, max_x, max_y = _projected_bounds(shadow.points)
+        foot = project_world_point(snapshot, Vec3(player.x, GROUND_Y, player.z))
+        shadow_center = project_world_point(
+            snapshot,
+            Vec3(player.x, GROUND_Y + PLAYER_SHADOW_Y, player.z),
+        )
+        self.assertIsNotNone(foot)
+        self.assertIsNotNone(shadow_center)
+        assert foot is not None
+        assert shadow_center is not None
         foot_x, foot_y = _sprite_anchor_from_draw_origin(player_sprite)
-        expected_shadow_bottom_y = foot_y + PLAYER_SHADOW_SCREEN_Y_OFFSET * player_sprite.scale
 
-        self.assertAlmostEqual(shadow_center_x, foot_x, delta=1.0)
-        self.assertAlmostEqual(max_y, expected_shadow_bottom_y, delta=1.0)
+        self.assertAlmostEqual(player_sprite.anchor.x, foot.x)
+        self.assertAlmostEqual(player_sprite.anchor.y, foot.y)
+        self.assertAlmostEqual(foot_x, foot.x, delta=0.5)
+        self.assertAlmostEqual(foot_y, foot.y, delta=0.5)
+        self.assertLessEqual(min_x, shadow_center.x)
+        self.assertGreaterEqual(max_x, shadow_center.x)
+        self.assertLessEqual(min_y, shadow_center.y)
+        self.assertGreaterEqual(max_y, shadow_center.y)
 
     def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
         player = create_player()
@@ -311,14 +326,10 @@ class RendererTests(TestCase):
         )
         prop_key = _render_sprite_sort_key(prop_sprite)
         player_key = _render_sprite_sort_key(player_sprite)
-        self.assertEqual(prop_key[1], -prop_sprite.lane_depth)
-        self.assertEqual(player_key[1], -player_sprite.lane_depth)
-        self.assertEqual(prop_key[2], -prop_sprite.route_depth)
-        self.assertEqual(player_key[2], -player_sprite.route_depth)
-        self.assertEqual(prop_key[3], -prop_sprite.depth)
-        self.assertEqual(player_key[3], -player_sprite.depth)
-        self.assertEqual(prop_key[4], prop_sprite.object_id)
-        self.assertEqual(player_key[4], player_sprite.object_id)
+        self.assertEqual(prop_key[1], -prop_sprite.depth)
+        self.assertEqual(player_key[1], -player_sprite.depth)
+        self.assertEqual(prop_key[2], prop_sprite.object_id)
+        self.assertEqual(player_key[2], player_sprite.object_id)
 
     def test_object_sort_depths_follow_camera_line_depth(self) -> None:
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)

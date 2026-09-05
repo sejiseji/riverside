@@ -5,6 +5,7 @@ from math import ceil, cos, floor, sin, tau
 from typing import Any
 
 from three_line_explorer import palette
+from three_line_explorer.blit_anchor import anchored_blt_origin, transformed_anchor
 from three_line_explorer.camera import CameraSnapshot
 from three_line_explorer.clipping import (
     clip_camera_polygon_near,
@@ -25,8 +26,6 @@ from three_line_explorer.config import (
     PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
     PLAYER_SHADOW_SIZE_Z,
-    PLAYER_SHADOW_SCREEN_Y_FLATTEN,
-    PLAYER_SHADOW_SCREEN_Y_OFFSET,
     PLAYER_SHADOW_Y,
     PLAYER_SPRITE_MAX_SCALE,
     PLAYER_SPRITE_MIN_SCALE,
@@ -264,7 +263,7 @@ class Renderer:
 
         player_sprite = self._make_player_sprite(player, snapshot, frame_count)
         if player_sprite is not None:
-            self._enqueue_player_shadow(player, player_sprite, stats)
+            self._enqueue_player_shadow(player, snapshot, stats)
             self.render_sprites.append(player_sprite)
 
         if show_lanes:
@@ -278,24 +277,17 @@ class Renderer:
     def _enqueue_player_shadow(
         self,
         player: PlayerState,
-        player_sprite: RenderSprite,
+        snapshot: CameraSnapshot,
         stats: RenderStats,
     ) -> None:
-        points = make_player_shadow_screen_points(player, player_sprite)
-        self.render_faces.append(
-            RenderFace(
-                layer=RenderLayer.FLOOR_GUIDE,
-                lane_depth=player_sprite.lane_depth,
-                route_depth=player_sprite.route_depth,
-                depth=player_sprite.depth,
-                object_id=PLAYER_SHADOW_OBJECT_ID,
-                face_index=0,
-                points=points,
-                fill_color=palette.PLAYER_SHADOW,
-                outline_color=palette.PLAYER_SHADOW,
-            )
+        face = make_player_shadow_face(player)
+        self._enqueue_face(
+            face,
+            RenderLayer.FLOOR_GUIDE,
+            snapshot,
+            stats,
+            object_sort_center=face.center,
         )
-        stats.draw_triangles += len(points) - 2
 
     def _make_player_sprite(
         self,
@@ -310,7 +302,7 @@ class Renderer:
             return None
 
         lane_depth, route_depth = _object_sort_depths(anchor_world, snapshot)
-        image_bank, u, v, w, h = player_sprite_source(player, frame_count)
+        image_bank, u, v, w, h = player_sprite_source(player, frame_count, snapshot)
         scale = calculate_sprite_scale(
             snapshot.focal_px,
             camera_point.z,
@@ -669,24 +661,24 @@ def _draw_face(pyxel: Any, face: RenderFace) -> None:
         pyxel.line(round(start.x), round(start.y), round(end.x), round(end.y), face.outline_color)
 
 
-def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, float, float, int, int]:
+def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, int, int, int, int]:
     return (
         face.layer,
-        -face.lane_depth,
-        -face.route_depth,
         -face.depth,
         face.object_id,
         face.face_index,
+        0,
+        0,
     )
 
 
-def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, float, float, int, int]:
+def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, int, int, int, int]:
     return (
         sprite.layer,
-        -sprite.lane_depth,
-        -sprite.route_depth,
         -sprite.depth,
         sprite.object_id,
+        0,
+        0,
         0,
     )
 
@@ -718,34 +710,6 @@ def make_player_shadow_face(player: PlayerState) -> Face:
         center=center,
         fill_color=palette.PLAYER_SHADOW,
         outline_color=palette.PLAYER_SHADOW,
-    )
-
-
-def make_player_shadow_screen_points(
-    player: PlayerState,
-    sprite: RenderSprite,
-) -> tuple[ProjectedPoint, ...]:
-    frame = player_sprite_frame(player)
-    scale_x = PLAYER_SHADOW_FRAME_SCALE_X[frame % len(PLAYER_SHADOW_FRAME_SCALE_X)]
-    scale_z = PLAYER_SHADOW_FRAME_SCALE_Z[frame % len(PLAYER_SHADOW_FRAME_SCALE_Z)]
-    radius_x = PLAYER_SHADOW_SIZE_X * 0.5 * scale_x * sprite.scale
-    radius_y = (
-        PLAYER_SHADOW_SIZE_Z
-        * 0.5
-        * scale_z
-        * sprite.scale
-        * PLAYER_SHADOW_SCREEN_Y_FLATTEN
-    )
-    foot_x, foot_y = _sprite_anchor_from_draw_origin(sprite)
-    center_x = foot_x
-    center_y = foot_y - radius_y + PLAYER_SHADOW_SCREEN_Y_OFFSET * sprite.scale
-    return tuple(
-        ProjectedPoint(
-            center_x + cos(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_x,
-            center_y + sin(tau * index / PLAYER_SHADOW_SEGMENTS) * radius_y,
-            sprite.depth,
-        )
-        for index in range(PLAYER_SHADOW_SEGMENTS)
     )
 
 
@@ -791,17 +755,27 @@ def _draw_sprite(pyxel: Any, sprite: RenderSprite) -> None:
 
 
 def _sprite_draw_origin(sprite: RenderSprite) -> tuple[int, int]:
-    return (
-        round(sprite.anchor.x - sprite.anchor_offset_x * sprite.scale),
-        round(sprite.anchor.y - sprite.anchor_offset_y * sprite.scale),
+    return anchored_blt_origin(
+        screen_x=sprite.anchor.x,
+        screen_y=sprite.anchor.y,
+        width=sprite.w,
+        height=sprite.h,
+        anchor_x=sprite.anchor_offset_x,
+        anchor_y=sprite.anchor_offset_y,
+        scale=sprite.scale,
     )
 
 
 def _sprite_anchor_from_draw_origin(sprite: RenderSprite) -> tuple[float, float]:
     x, y = _sprite_draw_origin(sprite)
-    return (
-        x + sprite.anchor_offset_x * sprite.scale,
-        y + sprite.anchor_offset_y * sprite.scale,
+    return transformed_anchor(
+        origin_x=x,
+        origin_y=y,
+        width=sprite.w,
+        height=sprite.h,
+        anchor_x=sprite.anchor_offset_x,
+        anchor_y=sprite.anchor_offset_y,
+        scale=sprite.scale,
     )
 
 

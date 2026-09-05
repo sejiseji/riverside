@@ -5,6 +5,7 @@ from math import floor, isfinite
 from typing import Any, Final
 
 from three_line_explorer import palette
+from three_line_explorer.blit_anchor import anchored_blt_origin
 from three_line_explorer.camera import CameraSnapshot
 from three_line_explorer.config import (
     GROUND_Y,
@@ -273,13 +274,24 @@ def _draw_projected_strip(
         return
     scale = min(scale, PARALLAX_STRIP_SCALE_LIMIT)
     if use_edge_alignment:
-        draw_x = floor(screen_left) - PARALLAX_STRIP_SCREEN_OVERLAP
+        anchor_screen_x = floor(screen_left) - PARALLAX_STRIP_SCREEN_OVERLAP
+        source_anchor_x = 0.0
     else:
-        draw_x = round(middle.x - region.width * scale * 0.5)
+        anchor_screen_x = middle.x
+        source_anchor_x = (region.width - 1) * 0.5
+    draw_x, draw_y = anchored_blt_origin(
+        screen_x=anchor_screen_x,
+        screen_y=bottom_y,
+        width=region.width,
+        height=region.height,
+        anchor_x=source_anchor_x,
+        anchor_y=region.height - 1,
+        scale=scale,
+    )
 
     pyxel.blt(
         draw_x,
-        round(bottom_y - region.height * scale),
+        draw_y,
         atlas.image,
         region.u,
         region.v,

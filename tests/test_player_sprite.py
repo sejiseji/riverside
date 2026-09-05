@@ -4,6 +4,8 @@ from math import pi
 from unittest import TestCase
 
 import three_line_explorer.player_sprite as player_sprite_module
+from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
+from three_line_explorer.config import CameraShotId
 from three_line_explorer.player import create_player
 from three_line_explorer.player_sprite import (
     PLAYER_SPRITE_ANCHOR_X,
@@ -78,11 +80,41 @@ class PlayerSpriteTests(TestCase):
         self.assertEqual(PLAYER_SPRITE_ANCHOR_Y, 60.0)
         self.assertLess(PLAYER_SPRITE_ANCHOR_Y, PLAYER_SPRITE_FRAME_H)
 
-    def test_render_yaw_selects_cardinal_sprite_rows(self) -> None:
+    def test_render_yaw_selects_cardinal_sprite_rows_without_camera(self) -> None:
         self.assertEqual(player_sprite_row(0.0), SPRITE_ROW_RIGHT)
         self.assertEqual(player_sprite_row(pi), SPRITE_ROW_LEFT)
         self.assertEqual(player_sprite_row(-pi * 0.5), SPRITE_ROW_FRONT)
         self.assertEqual(player_sprite_row(pi * 0.5), SPRITE_ROW_BACK)
+
+    def test_render_yaw_selects_camera_relative_sprite_rows(self) -> None:
+        player = create_player()
+        shot_a = make_camera_snapshot(
+            CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW],
+            player.x,
+            player.z,
+        )
+        shot_c = make_camera_snapshot(
+            CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW],
+            player.x,
+            player.z,
+        )
+
+        self.assertEqual(
+            player_sprite_row(0.0, shot_a, player_x=player.x, player_z=player.z),
+            SPRITE_ROW_RIGHT,
+        )
+        self.assertEqual(
+            player_sprite_row(0.0, shot_c, player_x=player.x, player_z=player.z),
+            SPRITE_ROW_LEFT,
+        )
+        self.assertEqual(
+            player_sprite_row(-pi * 0.5, shot_a, player_x=player.x, player_z=player.z),
+            SPRITE_ROW_FRONT,
+        )
+        self.assertEqual(
+            player_sprite_row(pi * 0.5, shot_a, player_x=player.x, player_z=player.z),
+            SPRITE_ROW_BACK,
+        )
 
     def test_load_prefers_pyxres_resource(self) -> None:
         pyxel = FakePyxel(load_succeeds=True)
@@ -125,3 +157,17 @@ class PlayerSpriteTests(TestCase):
         image_bank, u, *_ = player_sprite_source(player, 20)
         self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
         self.assertEqual(u, 0)
+
+    def test_player_sprite_source_uses_camera_relative_row_when_snapshot_is_supplied(self) -> None:
+        player = create_player()
+        snapshot = make_camera_snapshot(
+            CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW],
+            player.x,
+            player.z,
+        )
+
+        image_bank, u, v, *_ = player_sprite_source(player, 0, snapshot)
+
+        self.assertEqual(image_bank, PLAYER_SPRITE_IMAGE_BANKS[0])
+        self.assertEqual(u, 0)
+        self.assertEqual(v, SPRITE_ROW_LEFT * PLAYER_SPRITE_FRAME_H)
