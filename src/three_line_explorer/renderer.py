@@ -79,6 +79,7 @@ class RenderFace:
     layer: RenderLayer
     lane_depth: float
     route_depth: float
+    sort_depth: float
     depth: float
     object_id: int
     face_index: int
@@ -103,6 +104,7 @@ class RenderSprite:
     layer: RenderLayer
     lane_depth: float
     route_depth: float
+    sort_depth: float
     depth: float
     object_id: int
     anchor: ProjectedPoint
@@ -235,7 +237,7 @@ class Renderer:
                 continue
             if render_bounds.contains_aabb(solid.bounds):
                 faces = solid.faces
-                object_sort_center = solid.bounds.center
+                object_sort_anchor = _aabb_ground_sort_anchor(solid.bounds)
             else:
                 stats.clipped_boxes += 1
                 faces = make_aabb_faces(
@@ -245,14 +247,14 @@ class Renderer:
                     solid.top_color,
                     solid.outline_color,
                 )
-                object_sort_center = clipped_bounds.center
+                object_sort_anchor = _aabb_ground_sort_anchor(clipped_bounds)
             for face in faces:
                 self._enqueue_face(
                     face,
                     RenderLayer.SOLID,
                     snapshot,
                     stats,
-                    object_sort_center=object_sort_center,
+                    object_sort_anchor=object_sort_anchor,
                 )
 
         for sprite in environment_sprites:
@@ -286,7 +288,7 @@ class Renderer:
             RenderLayer.FLOOR_GUIDE,
             snapshot,
             stats,
-            object_sort_center=face.center,
+            object_sort_anchor=face.center,
         )
 
     def _make_player_sprite(
@@ -318,6 +320,7 @@ class Renderer:
             layer=RenderLayer.SOLID,
             lane_depth=lane_depth,
             route_depth=route_depth,
+            sort_depth=camera_point.z,
             depth=camera_point.z,
             object_id=PLAYER_OBJECT_ID,
             anchor=projected,
@@ -368,6 +371,7 @@ class Renderer:
                 layer=RenderLayer.SOLID,
                 lane_depth=lane_depth,
                 route_depth=route_depth,
+                sort_depth=camera_point.z,
                 depth=camera_point.z,
                 object_id=prop.render_object_id,
                 anchor=projected,
@@ -409,12 +413,14 @@ class Renderer:
             return
 
         lane_depth, route_depth = _object_sort_depths(sprite.anchor, snapshot)
+        sort_depth = camera_point.z + region.depth_bias
         self.render_sprites.append(
             RenderSprite(
                 layer=RenderLayer.SOLID,
                 lane_depth=lane_depth,
                 route_depth=route_depth,
-                depth=camera_point.z + region.depth_bias,
+                sort_depth=sort_depth,
+                depth=sort_depth,
                 object_id=sprite.object_id,
                 anchor=projected,
                 image_source=atlas.image,
@@ -451,7 +457,7 @@ class Renderer:
                 RenderLayer.FLOOR,
                 snapshot,
                 stats,
-                object_sort_center=walkway_bounds.center,
+                object_sort_anchor=walkway_bounds.center,
             )
 
         river_min_z = max(bounds.minimum.z, RIVER_START_Z)
@@ -470,7 +476,7 @@ class Renderer:
                 RenderLayer.FLOOR,
                 snapshot,
                 stats,
-                object_sort_center=river_bounds.center,
+                object_sort_anchor=river_bounds.center,
             )
 
     def _enqueue_face(
@@ -480,7 +486,7 @@ class Renderer:
         snapshot: CameraSnapshot,
         stats: RenderStats,
         *,
-        object_sort_center: Vec3,
+        object_sort_anchor: Vec3,
     ) -> None:
         to_camera = snapshot.position - face.center
         if face.normal.dot(to_camera) <= CULL_EPSILON:
@@ -499,12 +505,14 @@ class Renderer:
             projected_points.append(projected)
 
         depth = _face_sort_depth(clipped_points)
-        lane_depth, route_depth = _object_sort_depths(object_sort_center, snapshot)
+        lane_depth, route_depth = _object_sort_depths(object_sort_anchor, snapshot)
+        sort_depth = _world_sort_depth(object_sort_anchor, snapshot)
         self.render_faces.append(
             RenderFace(
                 layer=layer,
                 lane_depth=lane_depth,
                 route_depth=route_depth,
+                sort_depth=sort_depth,
                 depth=depth,
                 object_id=face.object_id,
                 face_index=face.face_index,
@@ -664,7 +672,7 @@ def _draw_face(pyxel: Any, face: RenderFace) -> None:
 def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, int, int, int, int]:
     return (
         face.layer,
-        -face.depth,
+        -face.sort_depth,
         face.object_id,
         face.face_index,
         0,
@@ -675,7 +683,7 @@ def _render_face_sort_key(face: RenderFace) -> tuple[RenderLayer, float, int, in
 def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, int, int, int, int]:
     return (
         sprite.layer,
-        -sprite.depth,
+        -sprite.sort_depth,
         sprite.object_id,
         0,
         0,
@@ -685,6 +693,15 @@ def _render_sprite_sort_key(sprite: RenderSprite) -> tuple[RenderLayer, float, i
 
 def _object_sort_depths(center: Vec3, snapshot: CameraSnapshot) -> tuple[float, float]:
     return center.z * snapshot.forward.z, center.x * snapshot.forward.x
+
+
+def _world_sort_depth(point: Vec3, snapshot: CameraSnapshot) -> float:
+    return (point - snapshot.position).dot(snapshot.forward)
+
+
+def _aabb_ground_sort_anchor(bounds: AABB) -> Vec3:
+    center = bounds.center
+    return Vec3(center.x, GROUND_Y, center.z)
 
 
 def make_player_shadow_face(player: PlayerState) -> Face:

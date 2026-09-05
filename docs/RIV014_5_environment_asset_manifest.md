@@ -74,8 +74,7 @@ FAR
 MID
 NEAR
 3D床・川
-3D固形AABB
-ワールドスプライトとプレイヤーの統合深度キュー
+3D固形AABB・ワールドスプライト・プレイヤーの統合Painterストリーム
 調査マーカー
 UI
 ```
@@ -89,15 +88,11 @@ UI
 
 ```python
 relative = world_anchor - camera_snapshot.position
-camera_depth = relative.dot(camera_snapshot.forward)
-lane_depth = world_anchor.z * camera_snapshot.forward.z
-route_depth = world_anchor.x * camera_snapshot.forward.x
+sort_depth = relative.dot(camera_snapshot.forward) + depth_bias
 
 items.sort(
     key=lambda item: (
-        -item.lane_depth,
-        -item.route_depth,
-        -(item.camera_depth + item.depth_bias),
+        -item.sort_depth,
         item.object_id,
     )
 )
@@ -107,8 +102,8 @@ items.sort(
 - プレイヤーも同じキューへ入れる
 - X位置、Zライン、カメラA/B/C/Dは投影深度へ自然に反映される
 - 同深度時は `object_id` で安定化
-- 直方体面との統合描画では、カメラの左右回り込みに合わせた
-  `lane_depth` と `route_depth` を先に使い、左右/奥手前の反転を扱う
+- 直方体面との統合描画では、直方体は地面フットプリント中心、
+  スプライトは接地点を `sort_depth` のアンカーにする
 
 ## 衝突と調査
 

@@ -43,10 +43,13 @@ from three_line_explorer.player_sprite import PLAYER_SPRITE_ANCHOR_Y
 from three_line_explorer.projection import project_world_point
 from three_line_explorer.renderer import (
     Renderer,
+    _aabb_ground_sort_anchor,
     _face_sort_depth,
     _object_sort_depths,
+    _render_face_sort_key,
     _render_sprite_sort_key,
     _sprite_anchor_from_draw_origin,
+    _world_sort_depth,
     make_player_shadow_face,
     render_scene_bounds,
 )
@@ -302,7 +305,7 @@ class RendererTests(TestCase):
             {face.object_id for face in renderer.render_faces},
         )
 
-    def test_sprite_sort_key_uses_depth_before_object_id(self) -> None:
+    def test_sprite_sort_key_uses_sort_depth_before_object_id(self) -> None:
         renderer = Renderer.create()
         renderer.prop_sprite_atlas = make_fake_prop_atlas()
         player = create_player()
@@ -326,10 +329,47 @@ class RendererTests(TestCase):
         )
         prop_key = _render_sprite_sort_key(prop_sprite)
         player_key = _render_sprite_sort_key(player_sprite)
-        self.assertEqual(prop_key[1], -prop_sprite.depth)
-        self.assertEqual(player_key[1], -player_sprite.depth)
+        self.assertEqual(prop_key[1], -prop_sprite.sort_depth)
+        self.assertEqual(player_key[1], -player_sprite.sort_depth)
         self.assertEqual(prop_key[2], prop_sprite.object_id)
         self.assertEqual(player_key[2], player_sprite.object_id)
+
+    def test_solid_faces_sort_by_ground_footprint_depth(self) -> None:
+        renderer = Renderer.create()
+        player = create_player()
+        bounds = AABB(
+            Vec3(-18.0, 0.0, -56.0),
+            Vec3(18.0, 92.0, -34.0),
+        )
+        solid = AabbSolid(
+            object_id=901,
+            bounds=bounds,
+            side_color=4,
+            top_color=12,
+            outline_color=0,
+        )
+        stage = Stage(solids=(solid,), zones=())
+        stage.rebuild_chunks()
+        snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], player.x, player.z)
+
+        renderer.build_scene(
+            stage,
+            update_visible_volume(player.x),
+            player,
+            snapshot,
+            show_volume=False,
+            show_lanes=False,
+        )
+
+        faces = [face for face in renderer.render_faces if face.object_id == 901]
+        expected_sort_depth = _world_sort_depth(_aabb_ground_sort_anchor(bounds), snapshot)
+        self.assertTrue(faces)
+        self.assertTrue(
+            any(abs(face.depth - expected_sort_depth) > 1.0 for face in faces)
+        )
+        for face in faces:
+            self.assertAlmostEqual(face.sort_depth, expected_sort_depth)
+            self.assertEqual(_render_face_sort_key(face)[1], -face.sort_depth)
 
     def test_object_sort_depths_follow_camera_line_depth(self) -> None:
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)

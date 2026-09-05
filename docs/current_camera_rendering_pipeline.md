@@ -241,21 +241,35 @@ Solid faces and sprites are put into one combined render stream.
 Face key:
 
 ```python
-(layer, -depth, object_id, face_index, 0, 0)
+(layer, -sort_depth, object_id, face_index, 0, 0)
 ```
 
 Sprite key:
 
 ```python
-(layer, -depth, object_id, 0, 0, 0)
+(layer, -sort_depth, object_id, 0, 0, 0)
 ```
 
-Primary depth is camera-space depth. Larger camera depth is farther away and
-drawn first:
+Primary `sort_depth` is camera-space depth. Larger camera depth is farther
+away and drawn first:
 
 ```python
-depth = dot(world_point - snapshot.position, snapshot.forward)
+sort_depth = dot(sort_anchor - snapshot.position, snapshot.forward)
 ```
+
+Static AABB solids use the ground footprint center of the current clipped or
+unclipped bounds as `sort_anchor`:
+
+```python
+sort_anchor = Vec3(bounds.center.x, GROUND_Y, bounds.center.z)
+```
+
+This keeps a tall box sorted as one grounded object instead of letting a top
+corner or nearest polygon vertex reorder the whole object against the cat
+sprite. Face-local `depth` is still retained as polygon camera-depth metadata.
+
+Player, prop, and environment sprites use their projected ground/contact
+anchor as `sort_anchor`. Environment sprites may add `region.depth_bias`.
 
 `lane_depth` and `route_depth` are still stored on sprite/face records for
 debugging and future tuning, but they are no longer the leading sort keys.
@@ -346,6 +360,8 @@ Rendering:
 - Projection is per vertex.
 - No sprite scale is used.
 - Layer: `SOLID`
+- `sort_depth` uses the ground footprint center of the clipped or unclipped
+  bounds, not the nearest vertex of each visible face.
 - Drawn by `_draw_face()` with filled triangles and per-face outline.
 
 ## Shared Scaled Sprite Anchor
@@ -608,7 +624,7 @@ Rendering:
 - Render item type: `RenderSprite`
 - Layer: `SOLID`
 - Object id: `sprite.object_id`
-- Depth: `camera_point.z + region.depth_bias`
+- `sort_depth`: `camera_point.z + region.depth_bias`
 - Draw call: `pyxel.blt(..., scale=scale, colkey=region.colkey)`
 
 Collision:

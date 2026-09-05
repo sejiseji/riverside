@@ -213,8 +213,10 @@ Pointer:
   assets.
 - Prop sprite anchor: ground center of the prop AABB
 - Prompt marker anchor: top center of the prop AABB plus `marker_height`
-- Prop, environment, and player sprite draw order: same Painter sprite queue,
-  sorted by camera depth first and stable object id second.
+- Solid, prop, environment, and player draw order: same Painter stream, sorted
+  by camera-depth `sort_depth` first and stable object id second. Static AABB
+  solids use their ground footprint center as the sort anchor; sprites use
+  their ground/contact anchor.
 - Font path: `assets/fonts/DotGothic16-Regular.ttf`
 - Font license text: `assets/fonts/DotGothic16-OFL.txt`
 - Active font target: DotGothic16 TTF, title 16 px, body 15 px

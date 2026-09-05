@@ -202,15 +202,18 @@ RIV014.5C:
 
 ## RIV017: Camera and Draw-Order Polish
 
-- Recheck sprite and solid draw order in all four shots.
+- Recheck sprite and solid draw order in all four shots after the grounded
+  `sort_depth` renderer change.
+- Split or replace large prototype AABB blocks that still produce painter-sort
+  ambiguity when they overlap the player sprite on screen.
 - Split background profiles if needed:
   - A/B/D: inland-facing background.
   - C: river-facing background.
-- Keep solid-face painter sorting stable by the existing line, route, camera
-  depth, and object-id keys.
-- Keep player, prop, and environment billboard sprites sorted by the same
-  camera-side lane depth, route depth, camera depth, and stable object-id
-  structure as the rest of the stage.
+- Keep static AABB solids sorted by their ground footprint center, and keep
+  player, prop, and environment billboard sprites sorted by their ground/contact
+  anchors.
+- Add fixed regression scenes for tall blockers, adjacent boxes, props behind
+  solids, props in front of solids, and left-edge zoom.
 
 ## RIV018: Mobile Input Polish
 
