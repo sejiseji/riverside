@@ -17,6 +17,7 @@ from three_line_explorer.config import (
     PLAYER_SHADOW_FRAME_SCALE_X,
     PLAYER_SHADOW_SEGMENTS,
     PLAYER_SHADOW_SIZE_X,
+    PLAYER_SHADOW_SCREEN_Y_OFFSET,
     PLAYER_SPRITE_MAX_SCALE,
     PLAYER_SPRITE_MIN_SCALE,
     RIVER_OBJECT_ID,
@@ -216,9 +217,10 @@ class RendererTests(TestCase):
         min_x, _, max_x, max_y = _projected_bounds(shadow.points)
         shadow_center_x = (min_x + max_x) * 0.5
         foot_x, foot_y = _sprite_anchor_from_draw_origin(player_sprite)
+        expected_shadow_bottom_y = foot_y + PLAYER_SHADOW_SCREEN_Y_OFFSET * player_sprite.scale
 
         self.assertAlmostEqual(shadow_center_x, foot_x, delta=1.0)
-        self.assertAlmostEqual(max_y, foot_y, delta=1.0)
+        self.assertAlmostEqual(max_y, expected_shadow_bottom_y, delta=1.0)
 
     def test_player_shadow_shape_is_elliptical_and_tracks_walk_frame(self) -> None:
         player = create_player()

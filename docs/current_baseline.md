@@ -93,6 +93,9 @@ River:
 - A small player shadow is drawn as a screen-space ellipse derived from the
   final player sprite draw origin, so the shadow follows sprite scale and anchor
   rounding.
+- Shadow Y contact is pulled upward by `PLAYER_SHADOW_SCREEN_Y_OFFSET = -6.0`
+  in scaled screen pixels to keep it visually attached under the cat's feet
+  during close camera shots.
 - The shadow uses the current sprite walk frame to apply subtle width/depth
   scale changes, and uses the same camera-distance scale as the player sprite.
 - The player sprite uses camera-distance scaling instead of a fixed 1x draw:
