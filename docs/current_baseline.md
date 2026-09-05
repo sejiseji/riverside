@@ -73,6 +73,10 @@ River:
   X is padded on both sides, and the far camera-side Z edge is padded so the
   green ground or river continues toward the parallax background.
 - Solids must not extend past `RIVER_START_Z`.
+- The normal prototype stage does not place the old colored debug AABB blocks
+  in `Stage.solids`; those blocks are retained only by `Stage.create_render_test()`.
+- Visible solid scenery in normal play is provided by source-defined
+  environment sprites plus separate collision AABBs.
 - Low riverside props may be placed beyond `RIVER_START_Z`; they are not
   collision solids.
 - Inland environmental props may also be inspectable when their visible sprite

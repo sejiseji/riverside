@@ -32,6 +32,10 @@ Prototype controls:
   Small riverside props are source-defined Pyxel color maps, generated into a
   runtime atlas once and rendered through the same sprite depth queue as the
   player.
+- Stage scenery: the normal prototype stage uses source-defined environment
+  sprites for visible rocks, signs, plants, and similar blockers. The old
+  colored AABB blocks are kept only in `Stage.create_render_test()` for
+  renderer stress checks.
 
 Player sprites:
 

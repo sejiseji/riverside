@@ -75,7 +75,7 @@ class Stage:
 
     @classmethod
     def create_prototype(cls) -> Stage:
-        solids = tuple(_create_prototype_solids())
+        solids: tuple[AabbSolid, ...] = ()
         inspectable_props = tuple(_create_prototype_inspectable_props())
         environment_sprites = tuple(_create_prototype_environment_sprites())
         collision_solids = tuple(_create_environment_collision_solids(environment_sprites))
@@ -117,6 +117,19 @@ class Stage:
             inspectable_props=inspectable_props,
             environment_sprites=environment_sprites,
             collision_solids=collision_solids,
+        )
+        stage.rebuild_chunks()
+        return stage
+
+    @classmethod
+    def create_render_test(cls) -> Stage:
+        """Create the old color-block scene for renderer stress checks."""
+        stage = cls(
+            solids=tuple(_create_debug_aabb_solids()),
+            zones=(),
+            inspectable_props=(),
+            environment_sprites=(),
+            collision_solids=(),
         )
         stage.rebuild_chunks()
         return stage
@@ -289,7 +302,7 @@ def _solid(
     )
 
 
-def _create_prototype_solids() -> list[AabbSolid]:
+def _create_debug_aabb_solids() -> list[AabbSolid]:
     solids: list[AabbSolid] = []
     object_id = 1
 

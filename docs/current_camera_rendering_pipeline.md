@@ -342,6 +342,10 @@ Source:
 
 - Stage solids in `Stage.solids`
 - Candidates are selected by X chunks and intersection with `render_bounds`.
+- Normal prototype play currently keeps `Stage.solids` empty and uses
+  environment sprites plus separate collision AABBs for visible blockers.
+- The old colored AABB block scene is retained as `Stage.create_render_test()`
+  for renderer stress checks.
 
 Geometry:
 

@@ -202,6 +202,10 @@ RIV014.5C:
 
 ## RIV017: Camera and Draw-Order Polish
 
+- Current pass: the normal prototype stage no longer renders the old colored
+  debug AABB blocks. They are retained in `Stage.create_render_test()` while
+  normal visible blockers use environment sprites with separate collision
+  AABBs.
 - Recheck sprite and solid draw order in all four shots after the grounded
   `sort_depth` renderer change.
 - Split or replace large prototype AABB blocks that still produce painter-sort

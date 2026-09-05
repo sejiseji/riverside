@@ -56,10 +56,19 @@ class StageLayoutTests(TestCase):
         self.assertEqual(sign.text_key, "weathered_forest_sign")
         self.assertIsNone(sign.sprite_id)
 
-    def test_prototype_stage_keeps_prop_count_small(self) -> None:
+    def test_prototype_stage_uses_environment_sprites_instead_of_debug_aabbs(self) -> None:
         stage = Stage.create_prototype()
-        self.assertLessEqual(len(stage.solids), 12)
+        self.assertEqual(stage.solids, ())
+        self.assertGreaterEqual(len(stage.environment_sprites), 1)
+        self.assertGreaterEqual(len(stage.collision_solids), 1)
         self.assertLessEqual(len(stage.inspectable_props), 10)
+
+    def test_debug_aabb_stage_is_kept_for_renderer_stress_checks(self) -> None:
+        stage = Stage.create_render_test()
+        self.assertGreaterEqual(len(stage.solids), 1)
+        self.assertEqual(stage.inspectable_props, ())
+        self.assertEqual(stage.environment_sprites, ())
+        self.assertEqual(stage.collision_solids, ())
 
     def test_prototype_stage_is_extended_for_long_route(self) -> None:
         self.assertEqual(STAGE_MIN_X, -720.0)
