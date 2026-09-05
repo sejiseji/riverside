@@ -25,12 +25,17 @@ from three_line_explorer.projection import project_world_point
 
 
 @dataclass(frozen=True, slots=True)
+class ParallaxBackdropLine:
+    z_offset: float
+    phase_ratio: float
+    scroll_multiplier: float
+
+
+@dataclass(frozen=True, slots=True)
 class ParallaxLayerTuning:
     pixels_per_world: float
     world_width: float
-    z_offset: float
-    min_scale: float
-    max_scale: float
+    lines: tuple[ParallaxBackdropLine, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,31 +66,36 @@ class ParallaxAtlas:
 
 PARALLAX_LAYER_TUNING: Final[dict[ParallaxLayer, ParallaxLayerTuning]] = {
     ParallaxLayer.FAR: ParallaxLayerTuning(
-        pixels_per_world=0.04,
+        pixels_per_world=0.035,
         world_width=72.0,
-        z_offset=36.0,
-        min_scale=0.40,
-        max_scale=1.20,
+        lines=(
+            ParallaxBackdropLine(z_offset=64.0, phase_ratio=0.0, scroll_multiplier=0.8),
+            ParallaxBackdropLine(z_offset=44.0, phase_ratio=0.5, scroll_multiplier=1.0),
+        ),
     ),
     ParallaxLayer.MID: ParallaxLayerTuning(
-        pixels_per_world=0.10,
+        pixels_per_world=0.085,
         world_width=64.0,
-        z_offset=22.0,
-        min_scale=0.45,
-        max_scale=1.35,
+        lines=(
+            ParallaxBackdropLine(z_offset=36.0, phase_ratio=0.25, scroll_multiplier=0.9),
+            ParallaxBackdropLine(z_offset=24.0, phase_ratio=0.75, scroll_multiplier=1.1),
+        ),
     ),
     ParallaxLayer.NEAR: ParallaxLayerTuning(
-        pixels_per_world=0.18,
+        pixels_per_world=0.14,
         world_width=56.0,
-        z_offset=8.0,
-        min_scale=0.50,
-        max_scale=1.55,
+        lines=(
+            ParallaxBackdropLine(z_offset=18.0, phase_ratio=0.0, scroll_multiplier=0.95),
+            ParallaxBackdropLine(z_offset=8.0, phase_ratio=0.5, scroll_multiplier=1.15),
+        ),
     ),
 }
 
 PARALLAX_VIEWPORT_MARGIN_X = 96
 PARALLAX_WORLD_SPAN_MARGIN_X = 96.0
 PARALLAX_STRIP_SCREEN_OVERLAP = 1
+PARALLAX_STRIP_SCALE_LIMIT = 4.0
+PARALLAX_STRIP_EDGE_TO_MID_SCALE_LIMIT = 2.0
 
 
 def build_parallax_atlas(pyxel: Any | None = None) -> ParallaxAtlas:
@@ -159,19 +169,26 @@ def draw_parallax_background(
 
     for layer in (ParallaxLayer.FAR, ParallaxLayer.MID, ParallaxLayer.NEAR):
         tuning = atlas.layer_tuning[layer]
-        edge_z = far_stage_edge_z(snapshot, visible_bounds) + (
-            farther_z_direction(snapshot) * tuning.z_offset
-        )
-        scroll_world = snapshot.position.x * tuning.pixels_per_world
-        _draw_projected_layer(
-            pyxel,
-            atlas,
-            snapshot,
-            layer,
-            visible_bounds,
-            edge_z,
-            scroll_world,
-        )
+        edge_z = far_stage_edge_z(snapshot, visible_bounds)
+        direction = farther_z_direction(snapshot)
+        strip_world_w = tuning.world_width * len(PARALLAX_SEQUENCES[layer])
+        for line in tuning.lines:
+            line_z = edge_z + direction * line.z_offset
+            scroll_world = (
+                snapshot.position.x
+                * tuning.pixels_per_world
+                * line.scroll_multiplier
+                + strip_world_w * line.phase_ratio
+            )
+            _draw_projected_layer(
+                pyxel,
+                atlas,
+                snapshot,
+                layer,
+                visible_bounds,
+                line_z,
+                scroll_world,
+            )
 
 
 def far_stage_edge_z(snapshot: CameraSnapshot, visible_bounds: AABB) -> float:
@@ -225,7 +242,9 @@ def _draw_projected_strip(
 ) -> None:
     left = project_world_point(snapshot, Vec3(left_x, GROUND_Y, edge_z))
     right = project_world_point(snapshot, Vec3(right_x, GROUND_Y, edge_z))
-    if left is None or right is None:
+    middle_x = (left_x + right_x) * 0.5
+    middle = project_world_point(snapshot, Vec3(middle_x, GROUND_Y, edge_z))
+    if left is None or right is None or middle is None:
         return
 
     screen_left = min(left.x, right.x)
@@ -234,10 +253,29 @@ def _draw_projected_strip(
     if screen_width <= 0.0 or region.width <= 0:
         return
 
-    draw_x = floor(screen_left) - PARALLAX_STRIP_SCREEN_OVERLAP
-    draw_width = max(1, round(screen_width) + PARALLAX_STRIP_SCREEN_OVERLAP * 2)
-    scale = draw_width / region.width
-    bottom_y = max(left.y, right.y)
+    edge_draw_width = max(1, round(screen_width) + PARALLAX_STRIP_SCREEN_OVERLAP * 2)
+    edge_scale = edge_draw_width / region.width
+    midpoint_scale = _strip_midpoint_scale(
+        snapshot,
+        middle.depth,
+        abs(right_x - left_x),
+        region.width,
+    )
+    use_edge_alignment = _can_use_edge_projected_scale(edge_scale, midpoint_scale)
+    if use_edge_alignment:
+        scale = edge_scale
+        bottom_y = max(left.y, right.y)
+    else:
+        scale = midpoint_scale
+        bottom_y = middle.y
+
+    if scale <= 0.0 or not isfinite(scale):
+        return
+    scale = min(scale, PARALLAX_STRIP_SCALE_LIMIT)
+    if use_edge_alignment:
+        draw_x = floor(screen_left) - PARALLAX_STRIP_SCREEN_OVERLAP
+    else:
+        draw_x = round(middle.x - region.width * scale * 0.5)
 
     pyxel.blt(
         draw_x,
@@ -250,6 +288,27 @@ def _draw_projected_strip(
         region.colkey,
         scale=scale,
     )
+
+
+def _strip_midpoint_scale(
+    snapshot: CameraSnapshot,
+    camera_depth: float,
+    world_width: float,
+    source_width: int,
+) -> float:
+    if camera_depth <= 0.0 or source_width <= 0:
+        return 0.0
+    return snapshot.focal_px * world_width / camera_depth / source_width
+
+
+def _can_use_edge_projected_scale(edge_scale: float, midpoint_scale: float) -> bool:
+    if edge_scale <= 0.0 or midpoint_scale <= 0.0:
+        return False
+    if not isfinite(edge_scale) or not isfinite(midpoint_scale):
+        return False
+    if edge_scale > PARALLAX_STRIP_SCALE_LIMIT:
+        return False
+    return edge_scale <= midpoint_scale * PARALLAX_STRIP_EDGE_TO_MID_SCALE_LIMIT
 
 
 def _projected_world_x_span_for_viewport(

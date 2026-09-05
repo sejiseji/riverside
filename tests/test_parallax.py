@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from three_line_explorer.camera import CAMERA_SHOTS, make_camera_snapshot
+from three_line_explorer.camera import (
+    CAMERA_SHOTS,
+    apply_left_edge_camera_blend,
+    make_camera_snapshot,
+)
 from three_line_explorer.config import CameraShotId
 from three_line_explorer.generated_environment_assets import PARALLAX_SEQUENCES, ParallaxLayer
 from three_line_explorer.parallax import (
+    PARALLAX_STRIP_SCALE_LIMIT,
     _projected_world_x_span_for_viewport,
     build_parallax_atlas,
     draw_parallax_background,
@@ -47,7 +52,7 @@ class ParallaxTests(TestCase):
         self.assertEqual(farther_z_direction(shot_a), -1.0)
         self.assertEqual(farther_z_direction(shot_c), 1.0)
 
-    def test_draw_parallax_emits_tiles_for_each_layer(self) -> None:
+    def test_draw_parallax_emits_strips_for_each_layer(self) -> None:
         pyxel = FakePyxel()
         atlas = build_parallax_atlas(pyxel)
         snapshot = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 40.0, 0.0)
@@ -64,6 +69,18 @@ class ParallaxTests(TestCase):
             for call in pyxel.blt_calls
         }
         self.assertEqual(drawn_layers, set(ParallaxLayer))
+        drawn_count_by_layer = {
+            layer: sum(
+                1
+                for call in pyxel.blt_calls
+                if _layer_for_region(asset_id_by_uv[(call.u, call.v)]) is layer
+            )
+            for layer in ParallaxLayer
+        }
+        self.assertTrue(
+            all(count >= 2 for count in drawn_count_by_layer.values()),
+            drawn_count_by_layer,
+        )
         for call in pyxel.blt_calls:
             self.assertEqual(call.width, 256)
 
@@ -83,22 +100,42 @@ class ParallaxTests(TestCase):
         self.assertGreater(span_c[1], visible.bounds.maximum.x)
         self.assertNotEqual(span_a, span_c)
 
-    def test_parallax_strip_scale_comes_from_projected_edges(self) -> None:
+    def test_parallax_strip_scale_changes_with_camera_and_stays_bounded(self) -> None:
         pyxel = FakePyxel()
         atlas = build_parallax_atlas(pyxel)
         visible = update_visible_volume(0.0)
         shot_a = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW], 0.0, 0.0)
         shot_c = make_camera_snapshot(CAMERA_SHOTS[CameraShotId.REAR_LEFT_SHALLOW], 0.0, 0.0)
+        left_edge_x = -700.0
+        left_edge_visible = update_visible_volume(left_edge_x)
+        left_edge_params = apply_left_edge_camera_blend(
+            CAMERA_SHOTS[CameraShotId.REAR_RIGHT_LOW],
+            left_edge_x,
+        )
+        left_edge_shot = make_camera_snapshot(left_edge_params, left_edge_x, 0.0)
 
         draw_parallax_background(pyxel, atlas, shot_a, player_x=0.0, visible_bounds=visible.bounds)
         scales_a = [call.scale for call in pyxel.blt_calls]
         pyxel.blt_calls.clear()
         draw_parallax_background(pyxel, atlas, shot_c, player_x=0.0, visible_bounds=visible.bounds)
         scales_c = [call.scale for call in pyxel.blt_calls]
+        pyxel.blt_calls.clear()
+        draw_parallax_background(
+            pyxel,
+            atlas,
+            left_edge_shot,
+            player_x=left_edge_x,
+            visible_bounds=left_edge_visible.bounds,
+        )
+        scales_left_edge = [call.scale for call in pyxel.blt_calls]
 
         self.assertNotEqual(scales_a, scales_c)
-        self.assertTrue(all(scale > 0.0 for scale in scales_a))
-        self.assertTrue(all(scale > 0.0 for scale in scales_c))
+        all_scales = scales_a + scales_c + scales_left_edge
+        self.assertTrue(all(scale > 0.0 for scale in all_scales))
+        self.assertTrue(
+            all(scale <= PARALLAX_STRIP_SCALE_LIMIT for scale in all_scales),
+            max(all_scales),
+        )
 
 
 def _layer_for_region(asset_id: str) -> ParallaxLayer:

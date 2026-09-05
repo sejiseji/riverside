@@ -21,8 +21,9 @@ Future implementation order is tracked in `docs/roadmap.md`.
 - Stage camera zones can force or restrict camera shots.
 - Inspectable riverside props are non-collision objects with their own proximity and text data.
 - Inspection prompts are 2D UI markers projected from 3D anchor points.
-- Parallax scenery is drawn as source-defined 4-tile sequence strips projected
-  from the far stage edge, before floor, river, solids, sprites, prompts, and UI.
+- Parallax scenery is drawn as multiple source-defined 4-tile sequence strips
+  projected from stage-parallel backdrop lines, before floor, river, solids,
+  sprites, prompts, and UI.
 - Environment world sprites use source-defined Pyxel color maps and share the
   same camera-side stage-order sort as player and prop sprites.
 - Environment sprite collision footprints are separate from their visual
@@ -254,13 +255,17 @@ Pointer:
 - Parallax layers: FAR 64x32 x4, MID 64x48 x4, NEAR 64x64 x4
 - Parallax sequence: `a -> b -> c -> d`, precomposed at runtime as a 256px
   source strip per layer and repeated as that full strip.
+- Parallax backdrop lines: each FAR/MID/NEAR layer has two stage-parallel Z
+  lines. The nearer line is phase-shifted against the farther line so camera
+  angle seams and transparent strip edges are covered by another line.
 - Parallax scroll: current camera position X converted to a layer-specific
   world offset.
-- Parallax placement: layers stand just beyond the far Z edge of the current
-  expanded scene render bounds, with A/B/D using the inland edge and C using the river edge
+- Parallax placement: lines stand just beyond the far Z edge of the current
+  expanded scene render bounds, with A/B/D using the inland edge and C using the river edge.
 - Parallax projection: each strip recomputes the needed world-X span from the
-  current camera, projects its left/right world edges, and derives draw scale
-  from those projected edges to keep strip seams stable through camera changes.
+  current camera and projects its left/right world edges when stable. At very
+  shallow angles it falls back to midpoint depth scaling with a bounded maximum
+  scale, so the background does not explode near a vanishing point.
 
 ## Rendering Bounds
 
