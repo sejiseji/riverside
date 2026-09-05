@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>riverside</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #05060a;
+        color: #f7f7f7;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+
+      :root {
+        --viewport-height: 100vh;
+        --bottom-guard: 12px;
+      }
+
+      @supports (height: 100svh) {
+        :root {
+          --viewport-height: 100svh;
+        }
+      }
+
+      @supports (padding: max(0px)) {
+        :root {
+          --bottom-guard: max(12px, env(safe-area-inset-bottom));
+        }
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        min-height: var(--viewport-height);
+        height: var(--viewport-height);
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) var(--bottom-guard)
+          env(safe-area-inset-left);
+        box-sizing: border-box;
+      }
+
+      pyxel-run,
+      pyxel-play {
+        display: block;
+        --available-height: calc(
+          var(--viewport-height) - env(safe-area-inset-top) - var(--bottom-guard)
+        );
+        width: min(100vw, calc(var(--available-height) * 393 / 852), 430px);
+        height: min(var(--available-height), calc(100vw * 852 / 393), 100vh);
+        aspect-ratio: 393 / 852;
+        touch-action: none;
+      }
+
+      pyxel-run canvas,
+      pyxel-play canvas {
+        width: 100% !important;
+        height: 100% !important;
+        image-rendering: pixelated;
+      }
+
+      @media (orientation: portrait) and (max-width: 500px) {
+        :root {
+          --bottom-guard: max(40px, env(safe-area-inset-bottom));
+        }
+
+        body {
+          place-items: start center;
+          padding: 0 0 var(--bottom-guard) 0;
+        }
+
+        pyxel-run,
+        pyxel-play {
+          --available-height: calc(var(--viewport-height) - var(--bottom-guard));
+          width: min(100vw, calc(var(--available-height) * 393 / 852));
+          height: min(var(--available-height), calc(100vw * 852 / 393));
+        }
+      }
+    </style>
+    <script>
+      (() => {
+        const syncViewportHeight = () => {
+          const viewport = window.visualViewport;
+          const height = viewport ? viewport.height : window.innerHeight;
+          document.documentElement.style.setProperty("--viewport-height", `${height}px`);
+        };
+        syncViewportHeight();
+        window.addEventListener("resize", syncViewportHeight);
+        window.visualViewport?.addEventListener("resize", syncViewportHeight);
+      })();
+    </script>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get("v") || Date.now().toString(36);
+        const shouldBust = (url) =>
+          url.origin === window.location.origin &&
+          /\.(pyxapp|py|pyxres|ttf|otf|bdf)$/i.test(url.pathname);
+        const bustUrl = (value) => {
+          try {
+            const url = new URL(value, window.location.href);
+            if (shouldBust(url)) {
+              url.searchParams.set("v", token);
+              return url.toString();
+            }
+          } catch (_error) {
+            return value;
+          }
+          return value;
+        };
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, init = {}) => {
+          if (input instanceof Request) {
+            const busted = bustUrl(input.url);
+            if (busted !== input.url) {
+              const requestInit = {
+                method: input.method,
+                headers: input.headers,
+                mode: input.mode,
+                credentials: input.credentials,
+                cache: "reload",
+                redirect: input.redirect,
+                referrer: input.referrer,
+                integrity: input.integrity,
+              };
+              return originalFetch(new Request(busted, requestInit), init);
+            }
+          }
+          return originalFetch(bustUrl(input), { cache: "reload", ...init });
+        };
+
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+          return originalOpen.call(this, method, bustUrl(url), ...rest);
+        };
+
+        if (window.caches) {
+          window.caches
+            .keys()
+            .then((keys) =>
+              Promise.all(
+                keys
+                  .filter((key) => /pyxel|riverside/i.test(key))
+                  .map((key) => window.caches.delete(key)),
+              ),
+            )
+            .catch(() => {});
+        }
+      })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/gh/kitao/pyxel@v2.9.9/wasm/pyxel.js"></script>
+  </head>
+  <body>
+    <pyxel-play root="." name="riverside-d2e0740.pyxapp" gamepad="disabled"></pyxel-play>
+  </body>
+</html>
