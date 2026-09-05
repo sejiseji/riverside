@@ -24,6 +24,11 @@ camera, and asset work.
   - `X = -720.0 .. 720.0`
   - `Y = 0.0 .. 100.0`
   - `Z = -60.0 .. 180.0`
+- Physical area labels:
+  - `A .. R` divide the full stage X range into 18 equal 80-unit bands.
+  - `area_label_for_x(PLAYER_START_X)` is `J`.
+- Story area progress is separate from physical labels and maps
+  `PLAYER_START_X .. STAGE_MAX_X` to indices `0 .. 17`.
 
 ## Camera Parameters
 
@@ -586,6 +591,12 @@ Each environment sprite has:
 - `collision_half_x`
 - `collision_half_z`
 - `depth_bias`
+
+Prototype environment sprite positions are generated from
+`PROTOTYPE_ENVIRONMENT_SPRITE_SLOTS`, which references the physical A-R stage
+area labels plus a local X offset. The runtime sprite instance, optional
+collision AABB, and optional inspectable prompt all derive from that single
+placement.
 
 Current environment sprite scale metadata:
 

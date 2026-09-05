@@ -41,8 +41,7 @@ GitHub Pages `.pyxapp` publishing.
   `.` as transparent authoring char, palette index 8 as the prop
   `transparent_color`, and no visible use of color `8` inside those prop assets.
 - Keep prop text and prop placement separate through `text_key`.
-- Prototype placement currently uses nine fixed riverside drift props; RIV014
-  should replace that with area-based placement slots.
+- Prototype riverside drift props now use area-based placement slots.
 - Story progression is connected but uses a temporary route-start-to-stage-end
   A-R mapping until the final area table exists.
 - Story items persist until read and advance only after the final inspection
@@ -52,6 +51,15 @@ GitHub Pages `.pyxapp` publishing.
 
 ## RIV014: Riverside Stage Composition
 
+- Current pass: physical stage areas A-R are defined across the whole
+  `STAGE_MIN_X..STAGE_MAX_X` range, and prototype riverside drift props are
+  now placed from named area slots instead of raw X literals.
+- Environment sprites also use named area slots, and inspectable scenery is
+  derived from the environment sprite placement instead of separate raw
+  inspection coordinates.
+- Keep physical A-R labels separate from the story-progress area index, which
+  still begins at `PLAYER_START_X` so the fixed story sequence does not trigger
+  immediately at the centered start position.
 - Finalize the overhead area labels from A through R.
 - Preserve +Z as the river side and -Z as the inland side.
 - Keep the river as visual space outside the walkable lane area.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import floor
+from typing import Final
 
 from three_line_explorer.config import (
     CameraShotId,
@@ -21,10 +22,114 @@ from three_line_explorer.environment_sprites import (
     EnvironmentSpriteInstance,
     make_environment_sprite_instance,
 )
+from three_line_explorer.generated_environment_assets import WORLD_SPRITES
 from three_line_explorer.geometry import AabbSolid
 from three_line_explorer.inspection import InspectableProp
 from three_line_explorer.math3d import AABB, Vec3, clamp, clamp_int
 from three_line_explorer.story_content import StoryInspectionDefinition
+
+
+AREA_LABELS: Final[tuple[str, ...]] = tuple("ABCDEFGHIJKLMNOPQR")
+if len(AREA_LABELS) != STAGE_AREA_COUNT:
+    raise ValueError("AREA_LABELS must match STAGE_AREA_COUNT")
+
+
+@dataclass(frozen=True, slots=True)
+class StageArea:
+    index: int
+    label: str
+    x_min: float
+    x_max: float
+    center_x: float
+    theme: str
+
+
+STAGE_AREA_THEMES: Final[tuple[str, ...]] = (
+    "left_edge_drain",
+    "quiet_reeds",
+    "narrow_bank",
+    "fallen_branches",
+    "shallow_pool",
+    "discarded_path",
+    "old_sign",
+    "mossy_turn",
+    "start_bank",
+    "cat_start",
+    "open_river",
+    "stone_marker",
+    "forced_camera_gate",
+    "thin_grass",
+    "wide_water",
+    "long_shadow",
+    "last_bend",
+    "right_edge_flow",
+)
+
+
+def _build_stage_areas() -> tuple[StageArea, ...]:
+    area_width = (STAGE_MAX_X - STAGE_MIN_X) / STAGE_AREA_COUNT
+    return tuple(
+        StageArea(
+            index=index,
+            label=label,
+            x_min=STAGE_MIN_X + index * area_width,
+            x_max=STAGE_MIN_X + (index + 1) * area_width,
+            center_x=STAGE_MIN_X + (index + 0.5) * area_width,
+            theme=STAGE_AREA_THEMES[index],
+        )
+        for index, label in enumerate(AREA_LABELS)
+    )
+
+
+STAGE_AREAS: Final[tuple[StageArea, ...]] = _build_stage_areas()
+STAGE_AREA_BY_LABEL: Final[dict[str, StageArea]] = {
+    area.label: area for area in STAGE_AREAS
+}
+
+
+@dataclass(frozen=True, slots=True)
+class DriftPropSlot:
+    area_label: str
+    item_id: str
+    x_offset: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class EnvironmentSpriteSlot:
+    area_label: str
+    sprite_id: str
+    x_offset: float
+    z: float
+
+
+PROTOTYPE_DRIFT_PROP_SLOTS: Final[tuple[DriftPropSlot, ...]] = (
+    DriftPropSlot("J", "single_sandal", 32.0),
+    DriftPropSlot("I", "clouded_bottle", -2.0),
+    DriftPropSlot("L", "sprouted_driftwood", -18.0),
+    DriftPropSlot("M", "rusted_key", -12.0),
+    DriftPropSlot("F", "yellow_name_tag", -26.0),
+    DriftPropSlot("H", "stopped_watch", -22.0),
+    DriftPropSlot("N", "chipped_mug", -14.0),
+    DriftPropSlot("P", "bent_spoon", 0.0),
+    DriftPropSlot("R", "child_rain_boot", -38.0),
+)
+
+
+PROTOTYPE_ENVIRONMENT_SPRITE_SLOTS: Final[tuple[EnvironmentSpriteSlot, ...]] = (
+    EnvironmentSpriteSlot("E", "dead_tree_trunk", 24.0, -55.0),
+    EnvironmentSpriteSlot("K", "mossy_rock", -24.0, -22.0),
+    EnvironmentSpriteSlot("G", "weathered_sign", 2.0, -53.0),
+    EnvironmentSpriteSlot("N", "jizo", -36.0, -54.0),
+    EnvironmentSpriteSlot("F", "grass_tuft", -8.0, -51.0),
+    EnvironmentSpriteSlot("H", "fern", -6.0, -50.0),
+    EnvironmentSpriteSlot("I", "bracken", 32.0, -52.0),
+    EnvironmentSpriteSlot("K", "butterbur", 32.0, -54.0),
+    EnvironmentSpriteSlot("M", "horsetail", -28.0, -50.0),
+    EnvironmentSpriteSlot("O", "sapling", -30.0, -55.0),
+    EnvironmentSpriteSlot("P", "grass_tuft", 28.0, -51.0),
+    EnvironmentSpriteSlot("Q", "mossy_rock", 4.0, -24.0),
+    EnvironmentSpriteSlot("R", "fern", -10.0, -52.0),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,8 +181,8 @@ class Stage:
     @classmethod
     def create_prototype(cls) -> Stage:
         solids: tuple[AabbSolid, ...] = ()
-        inspectable_props = tuple(_create_prototype_inspectable_props())
         environment_sprites = tuple(_create_prototype_environment_sprites())
+        inspectable_props = tuple(_create_prototype_inspectable_props(environment_sprites))
         collision_solids = tuple(_create_environment_collision_solids(environment_sprites))
         zones = (
             CameraZone(
@@ -249,9 +354,22 @@ def area_index_for_x(x: float) -> int:
 
 
 def area_center_x(area_index: int) -> float:
-    clamped_index = clamp_int(area_index, 0, STAGE_AREA_COUNT - 1)
-    area_width = (STAGE_MAX_X - STAGE_MIN_X) / STAGE_AREA_COUNT
-    return STAGE_MIN_X + (clamped_index + 0.5) * area_width
+    return stage_area_for_index(area_index).center_x
+
+
+def stage_area_for_index(area_index: int) -> StageArea:
+    return STAGE_AREAS[clamp_int(area_index, 0, STAGE_AREA_COUNT - 1)]
+
+
+def stage_area_for_label(label: str) -> StageArea:
+    normalized = label.upper()
+    if normalized not in STAGE_AREA_BY_LABEL:
+        raise ValueError(f"Unknown stage area label: {label}")
+    return STAGE_AREA_BY_LABEL[normalized]
+
+
+def area_label_for_x(x: float) -> str:
+    return stage_area_for_index(area_index_for_x(x)).label
 
 
 def story_area_index_for_x(x: float) -> int:
@@ -333,45 +451,38 @@ def _create_debug_aabb_solids() -> list[AabbSolid]:
     return solids
 
 
-def _create_prototype_inspectable_props() -> list[InspectableProp]:
-    items = (
-        ("single_sandal", 72.0),
-        ("clouded_bottle", -42.0),
-        ("sprouted_driftwood", 182.0),
-        ("rusted_key", 268.0),
-        ("yellow_name_tag", -306.0),
-        ("stopped_watch", -142.0),
-        ("chipped_mug", 346.0),
-        ("bent_spoon", 520.0),
-        ("child_rain_boot", 642.0),
-    )
+def _create_prototype_inspectable_props(
+    environment_sprites: tuple[EnvironmentSpriteInstance, ...],
+) -> list[InspectableProp]:
     props = [
         _drift_prop(
             object_id=f"river_prop_{index:03d}",
             render_object_id=INSPECTABLE_OBJECT_ID_BASE + index,
-            item_id=item_id,
-            x=x,
+            item_id=slot.item_id,
+            x=_drift_slot_x(slot),
         )
-        for index, (item_id, x) in enumerate(items, start=1)
+        for index, slot in enumerate(PROTOTYPE_DRIFT_PROP_SLOTS, start=1)
     ]
-    props.append(
-        InspectableProp(
-            object_id="environment_weathered_sign",
-            render_object_id=ENVIRONMENT_OBJECT_ID_BASE + 3,
-            bounds=AABB(
-                Vec3(-206.0, 0.0, -61.0),
-                Vec3(-190.0, 30.0, -45.0),
-            ),
-            text_key="weathered_forest_sign",
-            sprite_id=None,
-            marker_height=10.0,
-            acquire_padding_x=24.0,
-            acquire_padding_z=14.0,
-            release_padding_x=32.0,
-            release_padding_z=20.0,
+    props.extend(
+        prop
+        for prop in (
+            _environment_inspectable_prop(sprite)
+            for sprite in environment_sprites
         )
+        if prop is not None
     )
     return props
+
+
+def _drift_slot_x(slot: DriftPropSlot) -> float:
+    area = stage_area_for_label(slot.area_label)
+    item = DRIFT_ITEM_BY_ID[slot.item_id]
+    margin = max(item.world_width * 0.5, 5.0) + 2.0
+    return clamp(
+        area.center_x + slot.x_offset,
+        area.x_min + margin,
+        area.x_max - margin,
+    )
 
 
 def _drift_prop(
@@ -407,29 +518,49 @@ def _drift_prop(
 
 
 def _create_prototype_environment_sprites() -> list[EnvironmentSpriteInstance]:
-    def env(offset: int, sprite_id: str, x: float, z: float) -> EnvironmentSpriteInstance:
+    def env(offset: int, slot: EnvironmentSpriteSlot) -> EnvironmentSpriteInstance:
         return make_environment_sprite_instance(
             object_id=ENVIRONMENT_OBJECT_ID_BASE + offset,
-            sprite_id=sprite_id,
-            x=x,
-            z=z,
+            sprite_id=slot.sprite_id,
+            x=_environment_slot_x(slot),
+            z=slot.z,
         )
 
     return [
-        env(1, "dead_tree_trunk", -336.0, -55.0),
-        env(2, "mossy_rock", 96.0, -22.0),
-        env(3, "weathered_sign", -198.0, -53.0),
-        env(4, "jizo", 324.0, -54.0),
-        env(5, "grass_tuft", -288.0, -51.0),
-        env(6, "fern", -126.0, -50.0),
-        env(7, "bracken", -8.0, -52.0),
-        env(8, "butterbur", 152.0, -54.0),
-        env(9, "horsetail", 252.0, -50.0),
-        env(10, "sapling", 410.0, -55.0),
-        env(11, "grass_tuft", 548.0, -51.0),
-        env(12, "mossy_rock", 604.0, -24.0),
-        env(13, "fern", 670.0, -52.0),
+        env(index, slot)
+        for index, slot in enumerate(PROTOTYPE_ENVIRONMENT_SPRITE_SLOTS, start=1)
     ]
+
+
+def _environment_slot_x(slot: EnvironmentSpriteSlot) -> float:
+    area = stage_area_for_label(slot.area_label)
+    spec = WORLD_SPRITES[slot.sprite_id]
+    margin = spec.world_width * 0.5 + 2.0
+    return clamp(
+        area.center_x + slot.x_offset,
+        area.x_min + margin,
+        area.x_max - margin,
+    )
+
+
+def _environment_inspectable_prop(
+    sprite: EnvironmentSpriteInstance,
+) -> InspectableProp | None:
+    spec = WORLD_SPRITES[sprite.sprite_id]
+    if spec.inspectable_text_key is None:
+        return None
+    return InspectableProp(
+        object_id=f"environment_{sprite.sprite_id}",
+        render_object_id=sprite.object_id,
+        bounds=sprite.bounds,
+        text_key=spec.inspectable_text_key,
+        sprite_id=None,
+        marker_height=10.0,
+        acquire_padding_x=24.0,
+        acquire_padding_z=14.0,
+        release_padding_x=32.0,
+        release_padding_z=20.0,
+    )
 
 
 def _create_environment_collision_solids(

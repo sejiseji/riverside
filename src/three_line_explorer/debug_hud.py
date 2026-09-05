@@ -17,6 +17,7 @@ from three_line_explorer.config import (
 from three_line_explorer.input import CAMERA_BUTTON_RECTS, StickBasis
 from three_line_explorer.player import PlayerState
 from three_line_explorer.renderer import RenderStats
+from three_line_explorer.stage import area_label_for_x, story_area_index_for_x
 from three_line_explorer.visible_volume import VisibleVolumeState
 
 
@@ -145,6 +146,7 @@ def draw_debug_hud(
     lines = [
         f"FPS {pyxel.frame_count and pyxel.frame_count}",
         f"P X/Z {player.x:7.2f} {player.z:6.2f}",
+        f"AREA {area_label_for_x(player.x)} STORY {story_area_index_for_x(player.x):02d}",
         f"VEL X {player.velocity_x:7.2f}",
         f"FACING {player.facing:+d} LANE {player.target_lane_index}",
         f"CAM {shot_debug_name(snapshot.shot_id)}",

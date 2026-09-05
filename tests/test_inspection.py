@@ -105,19 +105,21 @@ class InspectionTests(TestCase):
 
     def test_marker_uses_top_center_plus_height(self) -> None:
         prop = Stage.create_prototype().inspectable_props[0]
+        center_x = (prop.bounds.minimum.x + prop.bounds.maximum.x) * 0.5
 
         marker = marker_world_position(prop)
 
-        self.assertEqual(marker.x, 72.0)
+        self.assertEqual(marker.x, center_x)
         self.assertEqual(marker.y, 12.0)
         self.assertEqual(marker.z, RIVER_START_Z + 9.5)
 
     def test_prop_sprite_anchor_uses_ground_center(self) -> None:
         prop = Stage.create_prototype().inspectable_props[0]
+        center_x = (prop.bounds.minimum.x + prop.bounds.maximum.x) * 0.5
 
         anchor = prop_sprite_anchor(prop)
 
-        self.assertEqual(anchor.x, 72.0)
+        self.assertEqual(anchor.x, center_x)
         self.assertEqual(anchor.y, 0.25)
         self.assertEqual(anchor.z, RIVER_START_Z + 9.5)
 

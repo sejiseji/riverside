@@ -35,7 +35,13 @@ Prototype controls:
 - Stage scenery: the normal prototype stage uses source-defined environment
   sprites for visible rocks, signs, plants, and similar blockers. The old
   colored AABB blocks are kept only in `Stage.create_render_test()` for
-  renderer stress checks.
+  renderer stress checks. Environment sprites are placed through the same
+  physical A-R area-slot table as riverside drift props; inspectable scenery
+  such as the weathered sign derives its prompt bounds from that sprite
+  placement.
+- Stage areas: physical A-R labels span the whole X range; the debug HUD also
+  shows the separate story-progress area index used by owner letters and
+  memory echoes.
 
 Player sprites:
 

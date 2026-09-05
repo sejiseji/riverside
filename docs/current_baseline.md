@@ -57,6 +57,11 @@ Stage bounds:
 - X: -720 .. +720
 - Y: 0 .. 100
 - Z: -60 .. +180
+- Physical stage areas: A .. R span the full stage X range in 18 equal
+  80-unit bands. The initial player position at X=0 is physical area J.
+- Story progression still uses a separate route-progress index from
+  `PLAYER_START_X` toward `STAGE_MAX_X`, so owner letters do not become due
+  simply because the physical stage starts at area A on the far left.
 
 Walkable lanes:
 
@@ -77,10 +82,16 @@ River:
   in `Stage.solids`; those blocks are retained only by `Stage.create_render_test()`.
 - Visible solid scenery in normal play is provided by source-defined
   environment sprites plus separate collision AABBs.
+- Prototype environment sprites are placed from physical A-R area slots rather
+  than raw X literals. Current slots are physical areas E, K, G, N, F, H, I, K,
+  M, O, P, Q, and R.
 - Low riverside props may be placed beyond `RIVER_START_Z`; they are not
   collision solids.
 - Inland environmental props may also be inspectable when their visible sprite
   and collision footprint are provided by the environment-sprite system.
+  Inspectable environment prompts are derived from the sprite's own placement
+  and `inspectable_text_key`, so moving the visible sign also moves its
+  interaction bounds.
 
 ## Player
 
@@ -203,6 +214,11 @@ Pointer:
   echoes, plus stage-local `weathered_forest_sign`.
 - Current prototype placed targets: nine riverside drift props plus the inland
   weathered sign.
+- The nine riverside drift props are placed from area slots, not raw ad hoc X
+  coordinates. Current slots are physical areas J, I, L, M, F, H, N, P, and R.
+- The inland weathered sign is generated from the `weathered_sign`
+  environment sprite's bounds and `inspectable_text_key`, rather than from a
+  separate hand-placed inspection prop.
 - Story area progress is currently mapped from the prototype route start
   (`PLAYER_START_X`) toward `STAGE_MAX_X`; RIV014 can replace this with the
   final A-R area table.
