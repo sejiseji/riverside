@@ -1,5 +1,5 @@
 # title: riverside
-# author: toytoytoy330
+# author: sejiseji
 # desc: Three-line 2.5D exploration prototype
 # site: https://github.com/sejiseji/riverside
 # license: MIT
